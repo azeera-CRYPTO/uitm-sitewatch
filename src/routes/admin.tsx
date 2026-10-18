@@ -259,13 +259,13 @@ function ReportDialog({ report, photo, onClose, onSaved }: { report: Report | nu
   const [status, setStatus] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
-  useEffect(() => { if (report) { setStatus(report.status); setNote(report.admin_notes ?? ""); } }, [report]);
+  useEffect(() => { if (report) { setStatus(report.status); setNote(""); } }, [report]);
   const save = async () => {
     if (!report) return;
     setBusy(true);
     const stamp = `[${new Date().toLocaleString("ms-MY")}] ${report.status} → ${status}${note.trim() ? `: ${note.trim()}` : ""}`;
-    const prev = report.admin_notes && report.admin_notes !== note ? report.admin_notes + "\n" : "";
-    const { error } = await supabase.from("reports").update({ status, admin_notes: note.trim() ? prev + stamp : report.admin_notes ? prev + stamp : stamp, updated_at: new Date().toISOString() }).eq("id", report.id);
+    const admin_notes = (report.admin_notes ? report.admin_notes + "\n" : "") + stamp;
+    const { error } = await supabase.from("reports").update({ status, admin_notes, updated_at: new Date().toISOString() }).eq("id", report.id);
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success("Status dikemas kini.");
@@ -296,7 +296,7 @@ function ReportDialog({ report, photo, onClose, onSaved }: { report: Report | nu
                 <SelectContent>{ADMIN_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5"><Label>Catatan tindakan / audit</Label><Textarea rows={3} value={note === report.admin_notes ? "" : note} onChange={(e) => setNote(e.target.value)} placeholder="cth. Kontraktor telah dimaklumkan…" /></div>
+            <div className="space-y-1.5"><Label>Catatan tindakan / audit</Label><Textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder="cth. Kontraktor telah dimaklumkan…" /></div>
             <Button className="w-full" onClick={save} disabled={busy}>{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Simpan</Button>
           </div>
         )}
