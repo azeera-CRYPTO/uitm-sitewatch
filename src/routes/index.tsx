@@ -1,15 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Lock, Camera, Loader2, CheckCircle2, ShieldCheck, RefreshCw } from "lucide-react";
+import type { Session } from "@supabase/supabase-js";
+import { Lock, Camera, Loader2, CheckCircle2, ShieldCheck, RefreshCw, LogOut, History, ClipboardPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ClientMap } from "@/components/ClientMap";
-import { CATEGORIES, STAFF_STATUSES, ZONES } from "@/lib/locations";
+import { CATEGORIES, STAFF_STATUSES, ZONES, type Report } from "@/lib/locations";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -22,12 +24,128 @@ export const Route = createFileRoute("/")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: StaffForm,
+  component: StaffPage,
 });
 
 type Geo = { lat: number; lng: number; acc: number } | null;
 
-function StaffForm() {
+function StaffPage() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<"form" | "history">("form");
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    supabase.auth.getSession().then(({ data }) => { setSession(data.session); setLoading(false); });
+    return () => data.subscription.unsubscribe();
+  }, []);
+  return (
+    <div className="min-h-screen bg-muted/40">
+      <header className="bg-primary text-primary-foreground">
+        <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-secondary">UiTM Kampus Machang</p>
+            <h1 className="text-lg font-bold leading-tight sm:text-xl">Sistem Pelaporan & Pemantauan Tugasan Tapak</h1>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            {session && <button onClick={() => supabase.auth.signOut()} className="rounded-md border border-primary-foreground/30 px-2 py-1.5 hover:bg-primary-foreground/10" aria-label="Log keluar"><LogOut className="h-4 w-4" /></button>}
+            <Link to="/admin" className="rounded-md border border-primary-foreground/30 px-3 py-1.5 text-xs font-medium hover:bg-primary-foreground/10">Admin</Link>
+          </div>
+        </div>
+        <div className="h-1 bg-secondary" />
+      </header>
+      <main className="mx-auto max-w-2xl px-4 py-6">
+        {loading ? <Loader2 className="mx-auto h-6 w-6 animate-spin" /> : !session ? <StaffAuth /> : (
+          <>
+            <div className="mb-5 grid grid-cols-2 gap-1 rounded-lg bg-card p-1 shadow-sm">
+              <Button variant={tab === "form" ? "default" : "ghost"} onClick={() => setTab("form")}><ClipboardPlus className="mr-1 h-4 w-4" />Laporan Baharu</Button>
+              <Button variant={tab === "history" ? "default" : "ghost"} onClick={() => setTab("history")}><History className="mr-1 h-4 w-4" />Sejarah Saya</Button>
+            </div>
+            {tab === "form" ? <StaffForm session={session} /> : <StaffHistory userId={session.user.id} />}
+          </>
+        )}
+      </main>
+    </div>
+  );
+}
+
+function StaffAuth() {
+  const [mode, setMode] = useState<"in" | "up">("in");
+  const [email, setEmail] = useState("");
+  const [pw, setPw] = useState("");
+  const [name, setName] = useState("");
+  const [sid, setSid] = useState("");
+  const [busy, setBusy] = useState(false);
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    if (mode === "in") {
+      const { error } = await supabase.auth.signInWithPassword({ email, password: pw });
+      if (error) toast.error("Log masuk gagal: " + error.message);
+    } else {
+      const { error } = await supabase.auth.signUp({ email, password: pw, options: { emailRedirectTo: window.location.origin, data: { staff_name: name.trim(), staff_id: sid.trim() } } });
+      if (error) toast.error(error.message);
+      else toast.success("Pendaftaran berjaya. Sila semak e-mel untuk pengesahan akaun.");
+    }
+    setBusy(false);
+  };
+  return (
+    <form onSubmit={submit} className="mx-auto max-w-sm space-y-4 rounded-xl border bg-card p-6 shadow-sm">
+      <h2 className="text-lg font-bold">{mode === "in" ? "Log Masuk Staf" : "Daftar Akaun Staf"}</h2>
+      {mode === "up" && <>
+        <div className="space-y-1.5"><Label>Nama penuh *</Label><Input value={name} onChange={(e) => setName(e.target.value)} required /></div>
+        <div className="space-y-1.5"><Label>ID Staf / Unit / Kontraktor *</Label><Input value={sid} onChange={(e) => setSid(e.target.value)} required /></div>
+      </>}
+      <div className="space-y-1.5"><Label>E-mel *</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
+      <div className="space-y-1.5"><Label>Kata laluan *</Label><Input type="password" value={pw} onChange={(e) => setPw(e.target.value)} required minLength={6} /></div>
+      <Button type="submit" className="w-full" disabled={busy}>{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{mode === "in" ? "Log Masuk" : "Daftar"}</Button>
+      <button type="button" className="w-full text-xs text-primary hover:underline" onClick={() => setMode(mode === "in" ? "up" : "in")}>
+        {mode === "in" ? "Staf baharu? Daftar akaun" : "Sudah ada akaun? Log masuk"}
+      </button>
+    </form>
+  );
+}
+
+const badge = (s: string) => s === "Selesai" ? "bg-success text-success-foreground" : s === "Memerlukan Tindakan Lanjut" ? "bg-destructive text-destructive-foreground" : s === "Dalam Tindakan" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground";
+
+function StaffHistory({ userId }: { userId: string }) {
+  const [rows, setRows] = useState<Report[] | null>(null);
+  const [photos, setPhotos] = useState<Record<string, string>>({});
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase.from("reports").select("*").eq("user_id", userId).order("captured_at", { ascending: false });
+      if (error) toast.error(error.message);
+      const list = (data ?? []) as Report[];
+      setRows(list);
+      const own = list.map((r) => r.photo_path).filter((p) => p.startsWith(userId + "/"));
+      if (own.length) {
+        const { data: s } = await supabase.storage.from("report-photos").createSignedUrls(own, 3600);
+        const m: Record<string, string> = {};
+        s?.forEach((x) => { if (x.path && x.signedUrl) m[x.path] = x.signedUrl; });
+        setPhotos(m);
+      }
+    })();
+  }, [userId]);
+  if (!rows) return <Loader2 className="mx-auto h-6 w-6 animate-spin" />;
+  if (!rows.length) return <p className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">Tiada laporan lagi.</p>;
+  return (
+    <div className="space-y-3">
+      {rows.map((r) => (
+        <div key={r.id} className="flex gap-3 rounded-xl border bg-card p-3 shadow-sm">
+          {photos[r.photo_path] ? <img src={photos[r.photo_path]} alt="Bukti" className="h-20 w-20 shrink-0 rounded object-cover" /> : <div className="h-20 w-20 shrink-0 rounded bg-muted" />}
+          <div className="min-w-0 flex-1 text-sm">
+            <div className="flex flex-wrap items-center gap-2"><Badge className={badge(r.status)}>{r.status}</Badge><span className="text-xs text-muted-foreground">{new Date(r.captured_at).toLocaleString("ms-MY")}</span></div>
+            <p className="mt-1 font-semibold">{r.category}</p>
+            <p className="text-xs text-muted-foreground">{r.zone} · {r.building}</p>
+            {r.notes && <p className="mt-1 text-xs">{r.notes}</p>}
+            {r.admin_notes && <pre className="mt-1 whitespace-pre-wrap rounded bg-muted p-2 text-xs text-primary">{r.admin_notes}</pre>}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function StaffForm({ session }: { session: Session }) {
   const [capturedAt, setCapturedAt] = useState<Date | null>(null);
   const [geo, setGeo] = useState<Geo>(null);
   const [geoErr, setGeoErr] = useState<string | null>(null);

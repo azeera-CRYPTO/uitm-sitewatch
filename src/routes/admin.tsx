@@ -2,7 +2,25 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import type { Session } from "@supabase/supabase-js";
-import { Download, Loader2, LogOut, MapPin, Table2 } from "lucide-react";
+import { Download, Loader2, LogOut, Mail, MapPin, Table2, Trash2 } from "lucide-react";
+
+function mailtoFor(r: Report, photo?: string) {
+  const subject = `[Laporan Tapak] ${r.status} - ${r.category} - ${r.building}`;
+  const body = [
+    "LAPORAN TUGASAN TAPAK UiTM KAMPUS MACHANG", "",
+    `Masa: ${new Date(r.captured_at).toLocaleString("ms-MY")}`,
+    `Staf: ${r.staff_name} (${r.staff_id})`,
+    `Kategori: ${r.category}`,
+    `Zon / Bangunan: ${r.zone} - ${r.building}`,
+    `Status: ${r.status}`,
+    `Catatan: ${r.notes ?? "-"}`,
+    `GPS: ${r.latitude.toFixed(6)}, ${r.longitude.toFixed(6)}`,
+    `Peta: https://www.google.com/maps?q=${r.latitude},${r.longitude}`,
+    photo ? `Foto (pautan sah 1 jam): ${photo}` : "",
+    r.admin_notes ? `\nLog tindakan:\n${r.admin_notes}` : "",
+  ].join("\n");
+  return `mailto:fasiliti.uitmck@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -272,6 +290,17 @@ function ReportDialog({ report, photo, onClose, onSaved }: { report: Report | nu
     onSaved();
     onClose();
   };
+  const remove = async () => {
+    if (!report || !window.confirm("Padam laporan ini secara kekal? Tindakan ini tidak boleh dibatalkan.")) return;
+    setBusy(true);
+    const { error } = await supabase.from("reports").delete().eq("id", report.id);
+    if (!error) await supabase.storage.from("report-photos").remove([report.photo_path]);
+    setBusy(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Laporan dipadam.");
+    onSaved();
+    onClose();
+  };
   return (
     <Dialog open={!!report} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
@@ -298,6 +327,10 @@ function ReportDialog({ report, photo, onClose, onSaved }: { report: Report | nu
             </div>
             <div className="space-y-1.5"><Label>Catatan tindakan / audit</Label><Textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder="cth. Kontraktor telah dimaklumkan…" /></div>
             <Button className="w-full" onClick={save} disabled={busy}>{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Simpan</Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="secondary" asChild><a href={mailtoFor(report, photo)}><Mail className="mr-1 h-4 w-4" />Jana ke E-mel</a></Button>
+              <Button variant="destructive" disabled={busy} onClick={remove}><Trash2 className="mr-1 h-4 w-4" />Padam</Button>
+            </div>
           </div>
         )}
       </DialogContent>

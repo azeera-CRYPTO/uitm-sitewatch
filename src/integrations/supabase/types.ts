@@ -31,6 +31,7 @@ export type Database = {
           staff_name: string
           status: string
           updated_at: string
+          user_id: string | null
           zone: string
         }
         Insert: {
@@ -49,6 +50,7 @@ export type Database = {
           staff_name: string
           status: string
           updated_at?: string
+          user_id?: string | null
           zone: string
         }
         Update: {
@@ -67,6 +69,7 @@ export type Database = {
           staff_name?: string
           status?: string
           updated_at?: string
+          user_id?: string | null
           zone?: string
         }
         Relationships: []
