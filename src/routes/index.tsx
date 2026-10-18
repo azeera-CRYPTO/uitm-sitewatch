@@ -173,7 +173,7 @@ function StaffForm() {
                 <Pick label="Kategori Laporan *" value={category} onChange={setCategory} items={CATEGORIES} />
                 <Pick label="Status Tugasan *" value={status} onChange={setStatus} items={STAFF_STATUSES} />
                 <Pick label="Zon *" value={zone} onChange={(v) => { setZone(v); setBuilding(""); }} items={Object.keys(ZONES)} />
-                <Pick label="Bangunan / Lokasi *" value={building} onChange={setBuilding} items={zone ? ZONES[zone] : []} disabled={!zone} placeholder={zone ? "Pilih bangunan" : "Pilih zon dahulu"} />
+                <Pick label="Bangunan / Lokasi *" value={building} onChange={setBuilding} items={(zone && ZONES[zone]) || []} disabled={!zone} placeholder={zone ? "Pilih bangunan" : "Pilih zon dahulu"} />
               </div>
               <div className="space-y-1.5">
                 <Label>Catatan Terperinci</Label>
@@ -213,7 +213,7 @@ function Pick({ label, value, onChange, items, disabled, placeholder }: { label:
   return (
     <div className="space-y-1.5">
       <Label>{label}</Label>
-      <Select value={value} onValueChange={onChange} disabled={disabled}>
+      <Select value={value} onValueChange={onChange} disabled={!!disabled}>
         <SelectTrigger className="w-full"><SelectValue placeholder={placeholder ?? "Pilih"} /></SelectTrigger>
         <SelectContent>{items.map((i) => <SelectItem key={i} value={i}>{i}</SelectItem>)}</SelectContent>
       </Select>
