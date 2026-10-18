@@ -32,7 +32,7 @@ export default function LeafletMap({ pins, height = 200, onPinClick }: { pins: P
       if (p.popup) m.bindPopup(p.popup);
       if (onPinClick) m.on("click", () => onPinClick(p.id));
     });
-    if (pins.length === 1) map.setView([pins[0].lat, pins[0].lng], 17);
+    if (pins.length === 1 && pins[0]) map.setView([pins[0].lat, pins[0].lng], 17);
     else if (pins.length > 1) map.fitBounds(L.latLngBounds(pins.map((p) => [p.lat, p.lng])), { padding: [30, 30] });
   }, [pins, onPinClick]);
 

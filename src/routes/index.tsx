@@ -47,7 +47,7 @@ function StaffForm() {
     setCapturedAt(new Date());
     setGeo(null);
     setGeoErr(null);
-    if (!navigator.geolocation) return setGeoErr("Peranti tidak menyokong GPS.");
+    if (!navigator.geolocation) { setGeoErr("Peranti tidak menyokong GPS."); return; }
     navigator.geolocation.getCurrentPosition(
       (p) => setGeo({ lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy }),
       (e) => setGeoErr(e.code === 1 ? "Akses lokasi ditolak. Sila benarkan lokasi dalam tetapan pelayar." : "Gagal mendapatkan lokasi GPS."),
@@ -75,9 +75,9 @@ function StaffForm() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!geo || !capturedAt) return toast.error("Lokasi GPS belum dikunci.");
-    if (!name.trim() || !staffId.trim() || !category || !status || !zone || !building) return toast.error("Sila lengkapkan semua medan wajib.");
-    if (!photo) return toast.error("Foto bukti adalah wajib.");
+    if (!geo || !capturedAt) { toast.error("Lokasi GPS belum dikunci."); return; }
+    if (!name.trim() || !staffId.trim() || !category || !status || !zone || !building) { toast.error("Sila lengkapkan semua medan wajib."); return; }
+    if (!photo) { toast.error("Foto bukti adalah wajib."); return; }
     setBusy(true);
     try {
       localStorage.setItem("staff_name", name.trim());

@@ -255,7 +255,7 @@ function FilterSel({ label, value, onChange, items }: { label: string; value: st
   );
 }
 
-function ReportDialog({ report, photo, onClose, onSaved }: { report: Report | null; photo?: string; onClose: () => void; onSaved: () => void }) {
+function ReportDialog({ report, photo, onClose, onSaved }: { report: Report | null; photo?: string | undefined; onClose: () => void; onSaved: () => void }) {
   const [status, setStatus] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -267,7 +267,7 @@ function ReportDialog({ report, photo, onClose, onSaved }: { report: Report | nu
     const admin_notes = (report.admin_notes ? report.admin_notes + "\n" : "") + stamp;
     const { error } = await supabase.from("reports").update({ status, admin_notes, updated_at: new Date().toISOString() }).eq("id", report.id);
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success("Status dikemas kini.");
     onSaved();
     onClose();
