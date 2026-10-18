@@ -1,15 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Lock, Camera, Loader2, CheckCircle2, ShieldCheck, RefreshCw } from "lucide-react";
+import type { Session } from "@supabase/supabase-js";
+import { Lock, Camera, Loader2, CheckCircle2, ShieldCheck, RefreshCw, LogOut, History, ClipboardPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ClientMap } from "@/components/ClientMap";
-import { CATEGORIES, STAFF_STATUSES, ZONES } from "@/lib/locations";
+import { CATEGORIES, STAFF_STATUSES, ZONES, type Report } from "@/lib/locations";
 
 export const Route = createFileRoute("/")({
   head: () => ({
