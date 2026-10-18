@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Lock, MapPin, Camera, Loader2, CheckCircle2, ShieldCheck, RefreshCw } from "lucide-react";
+import { Lock, Camera, Loader2, CheckCircle2, ShieldCheck, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -221,4 +221,3 @@ function Pick({ label, value, onChange, items, disabled, placeholder }: { label:
   );
 }
 
-export { MapPin };
