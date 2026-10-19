@@ -2,7 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import type { Session } from "@supabase/supabase-js";
-import { Download, Loader2, LogOut, Mail, MapPin, Table2, Trash2 } from "lucide-react";
+import { Download, Loader2, LogOut, Mail, MapPin, Table2, Trash2, Users } from "lucide-react";
+import { StaffManager } from "@/components/StaffManager";
 
 function mailtoFor(r: Report, photo?: string) {
   const subject = `[Laporan Tapak] ${r.status} - ${r.category} - ${r.building}`;
@@ -75,7 +76,7 @@ function AdminPage() {
       </div>
     </Center>
   );
-  return <Dashboard email={session.user.email ?? ""} />;
+  return <Dashboard email={session.user.email ?? ""} selfId={session.user.id} />;
 }
 
 function Center({ children }: { children: React.ReactNode }) {
@@ -125,7 +126,7 @@ const statusVariant = (s: string) =>
   s === "Selesai" ? "bg-success text-success-foreground" : s === HIGH_PRIORITY ? "bg-destructive text-destructive-foreground" : s === "Dalam Tindakan" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground";
 const statusColor = (s: string) => (s === "Selesai" ? "#16a34a" : s === HIGH_PRIORITY ? "#dc2626" : s === "Dalam Tindakan" ? "#5b2a86" : "#d4a017");
 
-function Dashboard({ email }: { email: string }) {
+function Dashboard({ email, selfId }: { email: string; selfId: string }) {
   const [rows, setRows] = useState<Report[]>([]);
   const [photos, setPhotos] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -215,6 +216,7 @@ function Dashboard({ email }: { email: string }) {
           <TabsList>
             <TabsTrigger value="table"><Table2 className="mr-1 h-4 w-4" />Jadual</TabsTrigger>
             <TabsTrigger value="map"><MapPin className="mr-1 h-4 w-4" />Peta</TabsTrigger>
+            <TabsTrigger value="staff"><Users className="mr-1 h-4 w-4" />Senarai Staf</TabsTrigger>
           </TabsList>
           <TabsContent value="table">
             <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
@@ -242,6 +244,9 @@ function Dashboard({ email }: { email: string }) {
                 </tbody>
               </table>
             </div>
+          </TabsContent>
+          <TabsContent value="staff">
+            <StaffManager reports={rows} selfId={selfId} />
           </TabsContent>
           <TabsContent value="map">
             <div className="rounded-xl border bg-card p-3 shadow-sm">
