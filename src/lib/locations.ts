@@ -44,6 +44,7 @@ export const HIGH_PRIORITY = "Memerlukan Tindakan Lanjut";
 
 export type Report = {
   id: string;
+  user_id: string | null;
   created_at: string;
   captured_at: string;
   latitude: number;
