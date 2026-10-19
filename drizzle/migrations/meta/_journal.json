@@ -15,6 +15,13 @@
       "when": 1792289336190,
       "tag": "0001_staff_accounts_history",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792372764414,
+      "tag": "0002_staff_profiles",
+      "breakpoints": true
     }
   ]
 }
