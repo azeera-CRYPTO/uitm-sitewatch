@@ -8,3 +8,7 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Staff report mutations use authenticated server functions with explicit ownership checks and RLS; database triggers preserve original capture fields to prevent direct API tampering.
+- Photo cleanup uses the Storage API only after verifying and deleting the caller-owned report; legacy date-based photo paths are supported.
+- Shared Google sign-in returns to the public home page and restores only a fixed same-origin destination after session establishment.
