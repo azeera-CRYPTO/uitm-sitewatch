@@ -43,7 +43,7 @@ export function StaffManager({ reports, selfId }: { reports: Report[]; selfId: s
     setBusy(true);
     const { error } = await supabase.from("profiles").update({ staff_name: edit.staff_name.trim(), staff_id: edit.staff_id.trim() }).eq("id", edit.id);
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success("Maklumat staf dikemas kini");
     setEdit(null); load();
   };
