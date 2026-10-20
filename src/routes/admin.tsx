@@ -108,7 +108,7 @@ function LoginForm() {
       <form onSubmit={submit} className="w-full max-w-sm space-y-4 overflow-hidden rounded-xl border bg-card shadow-lg">
         <div className="bg-primary px-6 py-5 text-primary-foreground">
           <div className="mb-4"><UitmLogo /></div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-secondary">UiTM Kampus Machang</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-secondary">Bahagian Pengurusan Fasiliti,<br />UiTM Cawangan Kelantan,</p>
           <h1 className="text-lg font-bold">Log Masuk Admin</h1>
         </div>
         <div className="space-y-4 px-6 pb-6">
@@ -189,8 +189,8 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
       <header className="bg-primary text-primary-foreground">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-secondary">Papan Pemuka Admin</p>
-            <h1 className="text-lg font-bold sm:text-xl">Pemantauan Tugasan Tapak UiTM Machang</h1>
+            <p className="text-xs font-semibold uppercase tracking-widest text-secondary">Bahagian Pengurusan Fasiliti,<br />UiTM Cawangan Kelantan,</p>
+            <h1 className="text-lg font-bold sm:text-xl">Sistem Pelaporan & Pemantauan Tugasan Tapak</h1>
           </div>
           <div className="flex items-center gap-2">
             <span className="hidden text-xs opacity-80 sm:inline">{email}</span>
@@ -286,13 +286,15 @@ function ReportDialog({ report, photo, onClose, onSaved }: { report: Report | nu
   const [status, setStatus] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
-  useEffect(() => { if (report) { setStatus(report.status); setNote(""); } }, [report]);
+  const [f, setF] = useState({ staff_name: "", staff_id: "", category: "", zone: "", building: "", notes: "" });
+  useEffect(() => { if (report) { setStatus(report.status); setNote(""); setF({ staff_name: report.staff_name, staff_id: report.staff_id, category: report.category, zone: report.zone, building: report.building, notes: report.notes ?? "" }); } }, [report]);
   const save = async () => {
     if (!report) return;
+    if (!f.staff_name.trim() || !f.staff_id.trim() || !f.building) { toast.error("Nama, ID staf dan bangunan wajib diisi."); return; }
     setBusy(true);
     const stamp = `[${new Date().toLocaleString("ms-MY")}] ${report.status} → ${status}${note.trim() ? `: ${note.trim()}` : ""}`;
     const admin_notes = (report.admin_notes ? report.admin_notes + "\n" : "") + stamp;
-    const { error } = await supabase.from("reports").update({ status, admin_notes, updated_at: new Date().toISOString() }).eq("id", report.id);
+    const { error } = await supabase.from("reports").update({ status, admin_notes, staff_name: f.staff_name.trim(), staff_id: f.staff_id.trim(), category: f.category, zone: f.zone, building: f.building, notes: f.notes.trim(), updated_at: new Date().toISOString() }).eq("id", report.id);
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Status dikemas kini.");
@@ -327,6 +329,22 @@ function ReportDialog({ report, photo, onClose, onSaved }: { report: Report | nu
             </div>
             {report.notes && <Info k="Catatan staf" v={report.notes} />}
             {report.admin_notes && <div><p className="text-xs text-muted-foreground">Log tindakan</p><pre className="whitespace-pre-wrap rounded bg-muted p-2 text-xs">{report.admin_notes}</pre></div>}
+            <div className="space-y-3 rounded-md border p-3">
+              <p className="text-xs font-semibold uppercase text-muted-foreground">Edit maklumat laporan</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5"><Label>Nama staf</Label><Input value={f.staff_name} onChange={(e) => setF({ ...f, staff_name: e.target.value })} /></div>
+                <div className="space-y-1.5"><Label>ID Staf / Unit</Label><Input value={f.staff_id} onChange={(e) => setF({ ...f, staff_id: e.target.value })} /></div>
+              </div>
+              <div className="space-y-1.5"><Label>Kategori</Label>
+                <Select value={f.category} onValueChange={(v) => setF({ ...f, category: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5"><Label>Zon</Label>
+                  <Select value={f.zone} onValueChange={(v) => setF({ ...f, zone: v, building: "" })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.keys(ZONES).map((z) => <SelectItem key={z} value={z}>{z}</SelectItem>)}</SelectContent></Select></div>
+                <div className="space-y-1.5"><Label>Bangunan</Label>
+                  <Select value={f.building} onValueChange={(v) => setF({ ...f, building: v })}><SelectTrigger><SelectValue placeholder="Pilih" /></SelectTrigger><SelectContent>{(ZONES[f.zone as keyof typeof ZONES] ?? []).map((b: string) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent></Select></div>
+              </div>
+              <div className="space-y-1.5"><Label>Catatan staf</Label><Textarea rows={3} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></div>
+            </div>
             <div className="space-y-1.5">
               <Label>Status baharu</Label>
               <Select value={status} onValueChange={setStatus}>

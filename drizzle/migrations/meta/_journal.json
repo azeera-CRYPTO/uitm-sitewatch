@@ -29,6 +29,13 @@
       "when": 1792374152279,
       "tag": "0003_staff_manage_own_reports",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792461822990,
+      "tag": "0004_own_profile_update",
+      "breakpoints": true
     }
   ]
 }

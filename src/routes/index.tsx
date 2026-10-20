@@ -36,6 +36,7 @@ function StaffPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"form" | "history">("form");
+  const [profileOk, setProfileOk] = useState<boolean | null>(null);
   useEffect(() => {
     const acceptSession = (s: Session | null) => {
       setSession(s);
@@ -49,12 +50,21 @@ function StaffPage() {
     supabase.auth.getSession().then(({ data }) => { acceptSession(data.session); setLoading(false); });
     return () => data.subscription.unsubscribe();
   }, []);
+  const uid = session?.user.id;
+  useEffect(() => {
+    if (!uid) { setProfileOk(null); return; }
+    supabase.from("profiles").select("staff_name, staff_id").eq("id", uid).maybeSingle().then(({ data }) => {
+      const ok = !!data?.staff_id?.trim() && !!data?.staff_name?.trim();
+      if (ok) { localStorage.setItem("staff_name", data!.staff_name); localStorage.setItem("staff_id", data!.staff_id); }
+      setProfileOk(ok);
+    });
+  }, [uid]);
   return (
     <div className="min-h-screen bg-muted/40">
       <header className="bg-primary text-primary-foreground">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-secondary">UiTM Kampus Machang</p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-secondary">Bahagian Pengurusan Fasiliti,<br />UiTM Cawangan Kelantan,</p>
             <h1 className="text-lg font-bold leading-tight sm:text-xl">Sistem Pelaporan & Pemantauan Tugasan Tapak</h1>
           </div>
           <div className="flex shrink-0 gap-2">
@@ -65,7 +75,7 @@ function StaffPage() {
         <div className="h-1 bg-secondary" />
       </header>
       <main className="mx-auto max-w-2xl px-4 py-6">
-        {loading ? <Loader2 className="mx-auto h-6 w-6 animate-spin" /> : !session ? <StaffAuth /> : (
+        {loading ? <Loader2 className="mx-auto h-6 w-6 animate-spin" /> : !session ? <StaffAuth /> : profileOk === null ? <Loader2 className="mx-auto h-6 w-6 animate-spin" /> : !profileOk ? <StaffOnboarding session={session} onDone={() => setProfileOk(true)} /> : (
           <>
             <div className="mb-5 grid grid-cols-2 gap-1 rounded-lg bg-card p-1 shadow-sm">
               <Button variant={tab === "form" ? "default" : "ghost"} onClick={() => setTab("form")}><ClipboardPlus className="mr-1 h-4 w-4" />Laporan Baharu</Button>
@@ -80,40 +90,41 @@ function StaffPage() {
 }
 
 function StaffAuth() {
-  const [mode, setMode] = useState<"in" | "up">("in");
-  const [email, setEmail] = useState("");
-  const [pw, setPw] = useState("");
-  const [name, setName] = useState("");
+  return (
+    <div className="mx-auto max-w-sm space-y-4 rounded-xl border bg-card p-6 shadow-sm">
+      <div className="rounded-md bg-primary p-4"><UitmLogo /></div>
+      <h2 className="text-lg font-bold">Log Masuk Staf</h2>
+      <p className="text-sm text-muted-foreground">Gunakan akaun Google anda. Staf baharu akan diminta melengkapkan maklumat selepas log masuk.</p>
+      <GoogleSignIn />
+    </div>
+  );
+}
+
+function StaffOnboarding({ session, onDone }: { session: Session; onDone: () => void }) {
+  const meta = session.user.user_metadata ?? {};
+  const [name, setName] = useState<string>(meta['full_name'] ?? meta['name'] ?? "");
   const [sid, setSid] = useState("");
   const [busy, setBusy] = useState(false);
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!name.trim() || !sid.trim()) { toast.error("Sila isi semua medan."); return; }
     setBusy(true);
-    if (mode === "in") {
-      const { error } = await supabase.auth.signInWithPassword({ email, password: pw });
-      if (error) toast.error("Log masuk gagal: " + error.message);
-    } else {
-      const { error } = await supabase.auth.signUp({ email, password: pw, options: { emailRedirectTo: window.location.origin, data: { staff_name: name.trim(), staff_id: sid.trim() } } });
-      if (error) toast.error(error.message);
-      else toast.success("Pendaftaran berjaya. Sila semak e-mel untuk pengesahan akaun.");
-    }
+    const { error } = await supabase.from("profiles").update({ staff_name: name.trim(), staff_id: sid.trim() }).eq("id", session.user.id);
     setBusy(false);
+    if (error) { toast.error(error.message); return; }
+    localStorage.setItem("staff_name", name.trim());
+    localStorage.setItem("staff_id", sid.trim());
+    toast.success("Maklumat staf disimpan.");
+    onDone();
   };
   return (
     <form onSubmit={submit} className="mx-auto max-w-sm space-y-4 rounded-xl border bg-card p-6 shadow-sm">
       <div className="rounded-md bg-primary p-4"><UitmLogo /></div>
-      <h2 className="text-lg font-bold">{mode === "in" ? "Log Masuk Staf" : "Daftar Akaun Staf"}</h2>
-      <GoogleSignIn />
-      {mode === "up" && <>
-        <div className="space-y-1.5"><Label>Nama penuh *</Label><Input value={name} onChange={(e) => setName(e.target.value)} required /></div>
-        <div className="space-y-1.5"><Label>ID Staf / Unit / Kontraktor *</Label><Input value={sid} onChange={(e) => setSid(e.target.value)} required /></div>
-      </>}
-      <div className="space-y-1.5"><Label>E-mel *</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
-      <div className="space-y-1.5"><Label>Kata laluan *</Label><Input type="password" value={pw} onChange={(e) => setPw(e.target.value)} required minLength={6} /></div>
-      <Button type="submit" className="w-full" disabled={busy}>{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{mode === "in" ? "Log Masuk" : "Daftar"}</Button>
-      <button type="button" className="w-full text-xs text-primary hover:underline" onClick={() => setMode(mode === "in" ? "up" : "in")}>
-        {mode === "in" ? "Staf baharu? Daftar akaun" : "Sudah ada akaun? Log masuk"}
-      </button>
+      <h2 className="text-lg font-bold">Lengkapkan Maklumat Staf</h2>
+      <p className="text-xs text-muted-foreground">{session.user.email}</p>
+      <div className="space-y-1.5"><Label>Nama penuh *</Label><Input value={name} onChange={(e) => setName(e.target.value)} required /></div>
+      <div className="space-y-1.5"><Label>ID Staf / Unit / Kontraktor *</Label><Input value={sid} onChange={(e) => setSid(e.target.value)} placeholder="cth. 123456 / BPF / Syarikat ABC" required /></div>
+      <Button type="submit" className="w-full" disabled={busy}>{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Simpan & Teruskan</Button>
     </form>
   );
 }
