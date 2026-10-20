@@ -147,7 +147,7 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
     const list = (data ?? []) as Report[];
     setRows(list);
     if (list.length) {
-      const { data: signed } = await supabase.storage.from("report-photos").createSignedUrls(list.map((r) => r.photo_path), 3600);
+      const { data: signed } = await supabase.storage.from("report-photos").createSignedUrls(list.map((r) => r.photo_path).filter(Boolean), 3600);
       const map: Record<string, string> = {};
       signed?.forEach((s) => { if (s.path && s.signedUrl) map[s.path] = s.signedUrl; });
       setPhotos(map);
@@ -305,7 +305,7 @@ function ReportDialog({ report, photo, onClose, onSaved }: { report: Report | nu
     if (!report || !window.confirm("Padam laporan ini secara kekal? Tindakan ini tidak boleh dibatalkan.")) return;
     setBusy(true);
     const { error } = await supabase.from("reports").delete().eq("id", report.id);
-    if (!error) await supabase.storage.from("report-photos").remove([report.photo_path]);
+    if (!error && report.photo_path) await supabase.storage.from("report-photos").remove([report.photo_path]);
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Laporan dipadam.");
