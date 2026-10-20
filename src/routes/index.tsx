@@ -36,6 +36,7 @@ function StaffPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"form" | "history">("form");
+  const [profileOk, setProfileOk] = useState<boolean | null>(null);
   useEffect(() => {
     const acceptSession = (s: Session | null) => {
       setSession(s);
@@ -49,12 +50,21 @@ function StaffPage() {
     supabase.auth.getSession().then(({ data }) => { acceptSession(data.session); setLoading(false); });
     return () => data.subscription.unsubscribe();
   }, []);
+  const uid = session?.user.id;
+  useEffect(() => {
+    if (!uid) { setProfileOk(null); return; }
+    supabase.from("profiles").select("staff_name, staff_id").eq("id", uid).maybeSingle().then(({ data }) => {
+      const ok = !!data?.staff_id?.trim() && !!data?.staff_name?.trim();
+      if (ok) { localStorage.setItem("staff_name", data!.staff_name); localStorage.setItem("staff_id", data!.staff_id); }
+      setProfileOk(ok);
+    });
+  }, [uid]);
   return (
     <div className="min-h-screen bg-muted/40">
       <header className="bg-primary text-primary-foreground">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-secondary">UiTM Kampus Machang</p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-secondary">Bahagian Pengurusan Fasiliti,<br />UiTM Cawangan Kelantan,</p>
             <h1 className="text-lg font-bold leading-tight sm:text-xl">Sistem Pelaporan & Pemantauan Tugasan Tapak</h1>
           </div>
           <div className="flex shrink-0 gap-2">
@@ -65,7 +75,7 @@ function StaffPage() {
         <div className="h-1 bg-secondary" />
       </header>
       <main className="mx-auto max-w-2xl px-4 py-6">
-        {loading ? <Loader2 className="mx-auto h-6 w-6 animate-spin" /> : !session ? <StaffAuth /> : (
+        {loading ? <Loader2 className="mx-auto h-6 w-6 animate-spin" /> : !session ? <StaffAuth /> : profileOk === null ? <Loader2 className="mx-auto h-6 w-6 animate-spin" /> : !profileOk ? <StaffOnboarding session={session} onDone={() => setProfileOk(true)} /> : (
           <>
             <div className="mb-5 grid grid-cols-2 gap-1 rounded-lg bg-card p-1 shadow-sm">
               <Button variant={tab === "form" ? "default" : "ghost"} onClick={() => setTab("form")}><ClipboardPlus className="mr-1 h-4 w-4" />Laporan Baharu</Button>
