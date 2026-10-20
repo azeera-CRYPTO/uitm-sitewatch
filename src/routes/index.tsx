@@ -140,7 +140,7 @@ function StaffHistory({ userId }: { userId: string }) {
       if (error) toast.error(error.message);
       const list = (data ?? []) as Report[];
       setRows(list);
-       const own = list.map((r) => r.photo_path);
+       const own = list.map((r) => r.photo_path).filter(Boolean);
       if (own.length) {
         const { data: s } = await supabase.storage.from("report-photos").createSignedUrls(own, 3600);
         const m: Record<string, string> = {};
@@ -224,15 +224,17 @@ function StaffForm({ session }: { session: Session }) {
     e.preventDefault();
     if (!geo || !capturedAt) { toast.error("Lokasi GPS belum dikunci."); return; }
     if (!name.trim() || !staffId.trim() || !category || !status || !zone || !building) { toast.error("Sila lengkapkan semua medan wajib."); return; }
-    if (!photo) { toast.error("Foto bukti adalah wajib."); return; }
     setBusy(true);
     try {
       localStorage.setItem("staff_name", name.trim());
       localStorage.setItem("staff_id", staffId.trim());
-      const ext = photo.name.split(".").pop()?.toLowerCase() || "jpg";
-      const path = `${session.user.id}/${capturedAt.toISOString().slice(0, 10)}/${crypto.randomUUID()}.${ext}`;
-      const up = await supabase.storage.from("report-photos").upload(path, photo, { contentType: photo.type || "image/jpeg" });
-      if (up.error) throw up.error;
+      let path = "";
+      if (photo) {
+        const ext = photo.name.split(".").pop()?.toLowerCase() || "jpg";
+        path = `${session.user.id}/${capturedAt.toISOString().slice(0, 10)}/${crypto.randomUUID()}.${ext}`;
+        const up = await supabase.storage.from("report-photos").upload(path, photo, { contentType: photo.type || "image/jpeg" });
+        if (up.error) throw up.error;
+      }
       const { error } = await supabase.from("reports").insert({
         user_id: session.user.id,
         captured_at: capturedAt.toISOString(),
@@ -330,7 +332,7 @@ function StaffForm({ session }: { session: Session }) {
             </section>
 
             <section className="space-y-3 rounded-xl border bg-card p-4 shadow-sm">
-              <h2 className="flex items-center gap-2 font-semibold"><Camera className="h-4 w-4 text-primary" /> Bukti Visual *</h2>
+              <h2 className="flex items-center gap-2 font-semibold"><Camera className="h-4 w-4 text-primary" /> Bukti Visual (Pilihan)</h2>
               <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-primary/40 bg-accent/40 p-6 text-center hover:bg-accent">
                 {preview ? <img src={preview} alt="Pratonton foto" className="max-h-64 rounded-md object-contain" /> : <><Camera className="h-8 w-8 text-primary" /><span className="text-sm font-medium">Ambil / muat naik foto</span></>}
                 <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => onPhoto(e.target.files?.[0] ?? null)} />
