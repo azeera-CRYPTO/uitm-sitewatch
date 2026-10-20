@@ -1,8 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import type { Session } from "@supabase/supabase-js";
-import { Lock, Camera, Loader2, CheckCircle2, ShieldCheck, RefreshCw, LogOut, History, ClipboardPlus } from "lucide-react";
+import { Lock, Camera, Loader2, CheckCircle2, ShieldCheck, RefreshCw, LogOut, History, ClipboardPlus, Pencil, Trash2 } from "lucide-react";
+import { GoogleSignIn } from "@/components/GoogleSignIn";
+import { UitmLogo } from "@/components/UitmLogo";
+import { OwnReportDialog } from "@/components/OwnReportDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,8 +37,16 @@ function StaffPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"form" | "history">("form");
   useEffect(() => {
-    const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
-    supabase.auth.getSession().then(({ data }) => { setSession(data.session); setLoading(false); });
+    const acceptSession = (s: Session | null) => {
+      setSession(s);
+      if (s) {
+        const destination = sessionStorage.getItem("google_destination");
+        sessionStorage.removeItem("google_destination");
+        if (destination === "/admin") window.location.assign("/admin");
+      }
+    };
+    const { data } = supabase.auth.onAuthStateChange((_e, s) => acceptSession(s));
+    supabase.auth.getSession().then(({ data }) => { acceptSession(data.session); setLoading(false); });
     return () => data.subscription.unsubscribe();
   }, []);
   return (
@@ -90,7 +101,9 @@ function StaffAuth() {
   };
   return (
     <form onSubmit={submit} className="mx-auto max-w-sm space-y-4 rounded-xl border bg-card p-6 shadow-sm">
+      <div className="rounded-md bg-primary p-4"><UitmLogo /></div>
       <h2 className="text-lg font-bold">{mode === "in" ? "Log Masuk Staf" : "Daftar Akaun Staf"}</h2>
+      <GoogleSignIn />
       {mode === "up" && <>
         <div className="space-y-1.5"><Label>Nama penuh *</Label><Input value={name} onChange={(e) => setName(e.target.value)} required /></div>
         <div className="space-y-1.5"><Label>ID Staf / Unit / Kontraktor *</Label><Input value={sid} onChange={(e) => setSid(e.target.value)} required /></div>
@@ -110,21 +123,21 @@ const badge = (s: string) => s === "Selesai" ? "bg-success text-success-foregrou
 function StaffHistory({ userId }: { userId: string }) {
   const [rows, setRows] = useState<Report[] | null>(null);
   const [photos, setPhotos] = useState<Record<string, string>>({});
-  useEffect(() => {
-    (async () => {
+  const [selected, setSelected] = useState<{ report: Report; action: "edit" | "delete" } | null>(null);
+  const load = useCallback(async () => {
       const { data, error } = await supabase.from("reports").select("*").eq("user_id", userId).order("captured_at", { ascending: false });
       if (error) toast.error(error.message);
       const list = (data ?? []) as Report[];
       setRows(list);
-      const own = list.map((r) => r.photo_path).filter((p) => p.startsWith(userId + "/"));
+       const own = list.map((r) => r.photo_path);
       if (own.length) {
         const { data: s } = await supabase.storage.from("report-photos").createSignedUrls(own, 3600);
         const m: Record<string, string> = {};
         s?.forEach((x) => { if (x.path && x.signedUrl) m[x.path] = x.signedUrl; });
         setPhotos(m);
       }
-    })();
-  }, [userId]);
+    }, [userId]);
+  useEffect(() => { void load(); }, [load]);
   if (!rows) return <Loader2 className="mx-auto h-6 w-6 animate-spin" />;
   if (!rows.length) return <p className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">Tiada laporan lagi.</p>;
   return (
@@ -138,9 +151,14 @@ function StaffHistory({ userId }: { userId: string }) {
             <p className="text-xs text-muted-foreground">{r.zone} · {r.building}</p>
             {r.notes && <p className="mt-1 text-xs">{r.notes}</p>}
             {r.admin_notes && <pre className="mt-1 whitespace-pre-wrap rounded bg-muted p-2 text-xs text-primary">{r.admin_notes}</pre>}
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" onClick={() => setSelected({ report: r, action: "edit" })}><Pencil className="mr-1 h-3.5 w-3.5" />Kemas kini</Button>
+              <Button size="sm" variant="destructive" onClick={() => setSelected({ report: r, action: "delete" })}><Trash2 className="mr-1 h-3.5 w-3.5" />Padam</Button>
+            </div>
           </div>
         </div>
       ))}
+      {selected && <OwnReportDialog key={`${selected.report.id}-${selected.action}`} report={selected.report} action={selected.action} onClose={() => setSelected(null)} onSaved={() => { void load(); }} />}
     </div>
   );
 }
@@ -201,10 +219,11 @@ function StaffForm({ session }: { session: Session }) {
       localStorage.setItem("staff_name", name.trim());
       localStorage.setItem("staff_id", staffId.trim());
       const ext = photo.name.split(".").pop()?.toLowerCase() || "jpg";
-      const path = `${capturedAt.toISOString().slice(0, 10)}/${crypto.randomUUID()}.${ext}`;
+      const path = `${session.user.id}/${capturedAt.toISOString().slice(0, 10)}/${crypto.randomUUID()}.${ext}`;
       const up = await supabase.storage.from("report-photos").upload(path, photo, { contentType: photo.type || "image/jpeg" });
       if (up.error) throw up.error;
       const { error } = await supabase.from("reports").insert({
+        user_id: session.user.id,
         captured_at: capturedAt.toISOString(),
         latitude: geo.lat,
         longitude: geo.lng,
