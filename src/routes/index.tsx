@@ -102,7 +102,7 @@ function StaffAuth() {
 
 function StaffOnboarding({ session, onDone }: { session: Session; onDone: () => void }) {
   const meta = session.user.user_metadata ?? {};
-  const [name, setName] = useState<string>(meta.full_name ?? meta.name ?? "");
+  const [name, setName] = useState<string>(meta['full_name'] ?? meta['name'] ?? "");
   const [sid, setSid] = useState("");
   const [busy, setBusy] = useState(false);
   const submit = async (e: React.FormEvent) => {
