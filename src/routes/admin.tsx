@@ -4,6 +4,8 @@ import { toast } from "sonner";
 import type { Session } from "@supabase/supabase-js";
 import { Download, Loader2, LogOut, Mail, MapPin, Table2, Trash2, Users } from "lucide-react";
 import { StaffManager } from "@/components/StaffManager";
+import { GoogleSignIn } from "@/components/GoogleSignIn";
+import { UitmLogo } from "@/components/UitmLogo";
 
 function mailtoFor(r: Report, photo?: string) {
   const subject = `[Laporan Tapak] ${r.status} - ${r.category} - ${r.building}`;
@@ -105,10 +107,12 @@ function LoginForm() {
     <Center>
       <form onSubmit={submit} className="w-full max-w-sm space-y-4 overflow-hidden rounded-xl border bg-card shadow-lg">
         <div className="bg-primary px-6 py-5 text-primary-foreground">
+          <div className="mb-4"><UitmLogo /></div>
           <p className="text-xs font-semibold uppercase tracking-widest text-secondary">UiTM Kampus Machang</p>
           <h1 className="text-lg font-bold">Log Masuk Admin</h1>
         </div>
         <div className="space-y-4 px-6 pb-6">
+          <GoogleSignIn destination="/admin" />
           <div className="space-y-1.5"><Label>E-mel</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
           <div className="space-y-1.5"><Label>Kata laluan</Label><Input type="password" value={pw} onChange={(e) => setPw(e.target.value)} required minLength={6} /></div>
           <Button type="submit" className="w-full" disabled={busy}>{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{mode === "in" ? "Log Masuk" : "Daftar Akaun Admin"}</Button>
