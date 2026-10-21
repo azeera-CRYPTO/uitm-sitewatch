@@ -5,6 +5,8 @@ import type { Session } from "@supabase/supabase-js";
 import { Lock, Camera, Loader2, CheckCircle2, ShieldCheck, RefreshCw, LogOut, History, ClipboardPlus, Pencil, Trash2 } from "lucide-react";
 import { GoogleSignIn } from "@/components/GoogleSignIn";
 import { UitmLogo } from "@/components/UitmLogo";
+import { ReportExport } from "@/components/ReportExport";
+import { photoPaths } from "@/lib/report-output";
 import { OwnReportDialog } from "@/components/OwnReportDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -19,10 +21,10 @@ import { CATEGORIES, STAFF_STATUSES, ZONES, type Report } from "@/lib/locations"
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Borang Laporan Tugasan Tapak | UiTM Kampus Machang" },
-      { name: "description", content: "Borang pelaporan tugasan tapak staf UiTM Kampus Machang dengan GPS, masa dan foto bukti." },
-      { property: "og:title", content: "Borang Laporan Tugasan Tapak | UiTM Kampus Machang" },
-      { property: "og:description", content: "Laporkan tugasan tapak dengan lokasi GPS automatik dan foto bukti." },
+      { title: "Borang Laporan Tugasan Tapak | BPF UiTM Cawangan Kelantan" },
+      { name: "description", content: "Borang pelaporan tugasan tapak staf BPF UiTM Cawangan Kelantan dengan GPS, masa dan foto pilihan." },
+      { property: "og:title", content: "Borang Laporan Tugasan Tapak | BPF UiTM Cawangan Kelantan" },
+      { property: "og:description", content: "Laporkan tugasan tapak dengan lokasi GPS automatik dan foto pilihan." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -55,7 +57,7 @@ function StaffPage() {
     if (!uid) { setProfileOk(null); return; }
     supabase.from("profiles").select("staff_name, staff_id").eq("id", uid).maybeSingle().then(({ data }) => {
       const ok = !!data?.staff_id?.trim() && !!data?.staff_name?.trim();
-      if (ok) { localStorage.setItem("staff_name", data!.staff_name); localStorage.setItem("staff_id", data!.staff_id); }
+      if (ok && data) { localStorage.setItem("staff_name", data.staff_name); localStorage.setItem("staff_id", data.staff_id); }
       setProfileOk(ok);
     });
   }, [uid]);
@@ -140,7 +142,7 @@ function StaffHistory({ userId }: { userId: string }) {
       if (error) toast.error(error.message);
       const list = (data ?? []) as Report[];
       setRows(list);
-       const own = list.map((r) => r.photo_path).filter(Boolean);
+       const own = photoPaths(list);
       if (own.length) {
         const { data: s } = await supabase.storage.from("report-photos").createSignedUrls(own, 3600);
         const m: Record<string, string> = {};
@@ -155,7 +157,7 @@ function StaffHistory({ userId }: { userId: string }) {
     <div className="space-y-3">
       {rows.map((r) => (
         <div key={r.id} className="flex gap-3 rounded-xl border bg-card p-3 shadow-sm">
-          {photos[r.photo_path] ? <img src={photos[r.photo_path]} alt="Bukti" className="h-20 w-20 shrink-0 rounded object-cover" /> : <div className="h-20 w-20 shrink-0 rounded bg-muted" />}
+          {photos[r.photo_path ?? ""] ? <img src={photos[r.photo_path ?? ""]} alt="Bukti" className="h-20 w-20 shrink-0 rounded object-cover" /> : <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded bg-muted"><Badge variant="outline">{r.photo_path ? "Foto belum tersedia" : "Tiada foto"}</Badge></div>}
           <div className="min-w-0 flex-1 text-sm">
             <div className="flex flex-wrap items-center gap-2"><Badge className={badge(r.status)}>{r.status}</Badge><span className="text-xs text-muted-foreground">{new Date(r.captured_at).toLocaleString("ms-MY")}</span></div>
             <p className="mt-1 font-semibold">{r.category}</p>
@@ -163,6 +165,7 @@ function StaffHistory({ userId }: { userId: string }) {
             {r.notes && <p className="mt-1 text-xs">{r.notes}</p>}
             {r.admin_notes && <pre className="mt-1 whitespace-pre-wrap rounded bg-muted p-2 text-xs text-primary">{r.admin_notes}</pre>}
             <div className="mt-3 flex flex-wrap gap-2">
+              <ReportExport report={r} photo={photos[r.photo_path ?? ""]} />
               <Button size="sm" variant="outline" onClick={() => setSelected({ report: r, action: "edit" })}><Pencil className="mr-1 h-3.5 w-3.5" />Kemas kini</Button>
               <Button size="sm" variant="destructive" onClick={() => setSelected({ report: r, action: "delete" })}><Trash2 className="mr-1 h-3.5 w-3.5" />Padam</Button>
             </div>
@@ -228,7 +231,7 @@ function StaffForm({ session }: { session: Session }) {
     try {
       localStorage.setItem("staff_name", name.trim());
       localStorage.setItem("staff_id", staffId.trim());
-      let path = "";
+      let path: string | null = null;
       if (photo) {
         const ext = photo.name.split(".").pop()?.toLowerCase() || "jpg";
         path = `${session.user.id}/${capturedAt.toISOString().slice(0, 10)}/${crypto.randomUUID()}.${ext}`;
@@ -258,19 +261,7 @@ function StaffForm({ session }: { session: Session }) {
   };
 
   return (
-    <div className="min-h-screen bg-muted/40">
-      <header className="bg-primary text-primary-foreground">
-        <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-secondary">UiTM Kampus Machang</p>
-            <h1 className="text-lg font-bold leading-tight sm:text-xl">Sistem Pelaporan & Pemantauan Tugasan Tapak</h1>
-          </div>
-          <Link to="/admin" className="shrink-0 rounded-md border border-primary-foreground/30 px-3 py-1.5 text-xs font-medium hover:bg-primary-foreground/10">Admin</Link>
-        </div>
-        <div className="h-1 bg-secondary" />
-      </header>
-
-      <main className="mx-auto max-w-2xl px-4 py-6">
+    <div>
         {done ? (
           <div className="rounded-xl border bg-card p-8 text-center shadow-sm">
             <CheckCircle2 className="mx-auto h-14 w-14 text-success" />
@@ -337,6 +328,7 @@ function StaffForm({ session }: { session: Session }) {
                 {preview ? <img src={preview} alt="Pratonton foto" className="max-h-64 rounded-md object-contain" /> : <><Camera className="h-8 w-8 text-primary" /><span className="text-sm font-medium">Ambil / muat naik foto</span></>}
                 <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => onPhoto(e.target.files?.[0] ?? null)} />
               </label>
+              {photo && <Button type="button" size="sm" variant="outline" onClick={() => onPhoto(null)}><Trash2 className="mr-1 h-4 w-4" />Buang foto</Button>}
             </section>
 
             <Button type="submit" size="lg" className="w-full" disabled={busy || !geo}>
@@ -345,7 +337,6 @@ function StaffForm({ session }: { session: Session }) {
             </Button>
           </form>
         )}
-      </main>
     </div>
   );
 }
