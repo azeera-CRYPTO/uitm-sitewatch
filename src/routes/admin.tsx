@@ -2,28 +2,13 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import type { Session } from "@supabase/supabase-js";
-import { Download, Loader2, LogOut, Mail, MapPin, Table2, Trash2, Users } from "lucide-react";
+import { Download, Loader2, LogOut, ArrowUpDown, MapPin, Table2, Trash2, Users } from "lucide-react";
+import { ReportExport } from "@/components/ReportExport";
+import { sortReports, photoPaths, type ReportSort } from "@/lib/report-output";
 import { StaffManager } from "@/components/StaffManager";
 import { GoogleSignIn } from "@/components/GoogleSignIn";
 import { UitmLogo } from "@/components/UitmLogo";
 
-function mailtoFor(r: Report, photo?: string) {
-  const subject = `[Laporan Tapak] ${r.status} - ${r.category} - ${r.building}`;
-  const body = [
-    "LAPORAN TUGASAN TAPAK UiTM KAMPUS MACHANG", "",
-    `Masa: ${new Date(r.captured_at).toLocaleString("ms-MY")}`,
-    `Staf: ${r.staff_name} (${r.staff_id})`,
-    `Kategori: ${r.category}`,
-    `Zon / Bangunan: ${r.zone} - ${r.building}`,
-    `Status: ${r.status}`,
-    `Catatan: ${r.notes ?? "-"}`,
-    `GPS: ${r.latitude.toFixed(6)}, ${r.longitude.toFixed(6)}`,
-    `Peta: https://www.google.com/maps?q=${r.latitude},${r.longitude}`,
-    photo ? `Foto (pautan sah 1 jam): ${photo}` : "",
-    r.admin_notes ? `\nLog tindakan:\n${r.admin_notes}` : "",
-  ].join("\n");
-  return `mailto:fasiliti.uitmck@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-}
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -138,6 +123,9 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
   const [to, setTo] = useState("");
   const [zone, setZone] = useState("all");
   const [cat, setCat] = useState("all");
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<ReportSort>("date-desc");
+  const toggleSort = (field: "date" | "name") => setSort((old) => old === `${field}-asc` ? `${field}-desc` : `${field}-asc`);
   const [selected, setSelected] = useState<Report | null>(null);
 
   const load = useCallback(async () => {
@@ -146,8 +134,8 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
     if (error) toast.error(error.message);
     const list = (data ?? []) as Report[];
     setRows(list);
-    if (list.length) {
-      const { data: signed } = await supabase.storage.from("report-photos").createSignedUrls(list.map((r) => r.photo_path).filter(Boolean), 3600);
+    if (photoPaths(list).length) {
+      const { data: signed } = await supabase.storage.from("report-photos").createSignedUrls(photoPaths(list), 3600);
       const map: Record<string, string> = {};
       signed?.forEach((s) => { if (s.path && s.signedUrl) map[s.path] = s.signedUrl; });
       setPhotos(map);
@@ -156,7 +144,7 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const filtered = useMemo(() => rows.filter((r) => {
+  const filtered = useMemo(() => sortReports(rows.filter((r) => {
     const d = r.captured_at.slice(0, 10);
     const local = new Date(r.captured_at).toLocaleDateString("en-CA");
     if (from && local < from) return false;
@@ -164,7 +152,7 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
     if (zone !== "all" && r.zone !== zone) return false;
     if (cat !== "all" && r.category !== cat) return false;
     return !!d;
-  }), [rows, from, to, zone, cat]);
+  }), sort, query), [rows, from, to, zone, cat, sort, query]);
 
   const pins = useMemo(() => filtered.map((r) => ({ id: r.id, lat: r.latitude, lng: r.longitude, color: statusColor(r.status) })), [filtered]);
   const onPin = useCallback((id: string) => setSelected(rows.find((r) => r.id === id) ?? null), [rows]);
@@ -216,6 +204,10 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
           <div className="flex items-end"><Button className="w-full" variant="secondary" onClick={exportCsv}><Download className="mr-2 h-4 w-4" />Eksport Excel/CSV</Button></div>
         </div>
 
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5"><Label htmlFor="staff-search">Cari nama / ID staf</Label><Input id="staff-search" placeholder="Nama atau ID staf" value={query} onChange={(e) => setQuery(e.target.value)} /></div>
+          <div className="space-y-1.5"><Label>Susunan laporan</Label><Select value={sort} onValueChange={(v) => { if (v === "date-desc" || v === "date-asc" || v === "name-asc" || v === "name-desc") setSort(v); }}><SelectTrigger aria-label="Susunan laporan" className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="date-desc">Tarikh: Terkini dahulu</SelectItem><SelectItem value="date-asc">Tarikh: Terlama dahulu</SelectItem><SelectItem value="name-asc">Nama staf: A–Z</SelectItem><SelectItem value="name-desc">Nama staf: Z–A</SelectItem></SelectContent></Select></div>
+        </div>
         <Tabs defaultValue="table">
           <TabsList>
             <TabsTrigger value="table"><Table2 className="mr-1 h-4 w-4" />Jadual</TabsTrigger>
@@ -226,7 +218,7 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
             <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
               <table className="w-full min-w-[1100px] text-sm">
                 <thead className="bg-primary/5 text-left text-xs uppercase tracking-wide text-muted-foreground">
-                  <tr>{["Masa", "Staf", "Kategori", "Zon", "Bangunan", "Status", "Catatan", "Foto", "GPS", ""].map((h) => <th key={h} className="px-3 py-3">{h}</th>)}</tr>
+                  <tr>{["Masa", "Staf", "Kategori", "Zon", "Bangunan", "Status", "Catatan", "Foto", "GPS", ""].map((h) => <th key={h} className="px-3 py-3" aria-sort={h === "Masa" && sort.startsWith("date") || h === "Staf" && sort.startsWith("name") ? (sort.endsWith("asc") ? "ascending" : "descending") : undefined}>{h === "Masa" || h === "Staf" ? <Button size="sm" variant="ghost" onClick={() => toggleSort(h === "Masa" ? "date" : "name")}>{h}<ArrowUpDown className="ml-1 h-3.5 w-3.5" /></Button> : h}</th>)}</tr>
                 </thead>
                 <tbody>
                   {loading ? <tr><td colSpan={10} className="p-8 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></td></tr>
@@ -240,7 +232,7 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
                         <td className="px-3 py-2">{r.building}</td>
                         <td className="px-3 py-2"><Badge className={statusVariant(r.status)}>{r.status}</Badge></td>
                         <td className="max-w-[200px] px-3 py-2 text-xs">{r.notes}{r.admin_notes && <div className="mt-1 italic text-primary">Admin: {r.admin_notes}</div>}</td>
-                        <td className="px-3 py-2">{photos[r.photo_path] && <a href={photos[r.photo_path]} target="_blank" rel="noreferrer"><img src={photos[r.photo_path]} alt="Bukti" className="h-14 w-14 rounded object-cover" /></a>}</td>
+                        <td className="px-3 py-2">{photos[r.photo_path ?? ""] ? <a href={photos[r.photo_path ?? ""]} target="_blank" rel="noreferrer"><img src={photos[r.photo_path ?? ""]} alt="Bukti" className="h-14 w-14 rounded object-cover" /></a> : <Badge variant="outline">{r.photo_path ? "Foto belum tersedia" : "Tiada foto"}</Badge>}</td>
                         <td className="whitespace-nowrap px-3 py-2 font-mono text-xs"><a className="text-primary hover:underline" target="_blank" rel="noreferrer" href={`https://www.google.com/maps?q=${r.latitude},${r.longitude}`}>{r.latitude.toFixed(5)}, {r.longitude.toFixed(5)}</a></td>
                         <td className="px-3 py-2"><Button size="sm" variant="outline" onClick={() => setSelected(r)}>Kemas kini</Button></td>
                       </tr>
@@ -261,7 +253,7 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
         </Tabs>
       </main>
 
-      <ReportDialog report={selected} photo={selected ? photos[selected.photo_path] : undefined} onClose={() => setSelected(null)} onSaved={load} />
+      <ReportDialog report={selected} photo={selected ? photos[selected.photo_path ?? ""] : undefined} onClose={() => setSelected(null)} onSaved={load} />
     </div>
   );
 }
@@ -318,7 +310,7 @@ function ReportDialog({ report, photo, onClose, onSaved }: { report: Report | nu
         <DialogHeader><DialogTitle>Butiran Laporan</DialogTitle></DialogHeader>
         {report && (
           <div className="space-y-3 text-sm">
-            {photo && <img src={photo} alt="Bukti" className="max-h-60 w-full rounded-md object-cover" />}
+            {photo ? <img src={photo} alt="Bukti" className="max-h-60 w-full rounded-md object-cover" /> : <Badge variant="outline">{report.photo_path ? "Foto belum tersedia" : "Tiada foto"}</Badge>}
             <div className="grid grid-cols-2 gap-2">
               <Info k="Staf" v={`${report.staff_name} (${report.staff_id})`} />
               <Info k="Masa" v={new Date(report.captured_at).toLocaleString("ms-MY")} />
@@ -354,8 +346,8 @@ function ReportDialog({ report, photo, onClose, onSaved }: { report: Report | nu
             </div>
             <div className="space-y-1.5"><Label>Catatan tindakan / audit</Label><Textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder="cth. Kontraktor telah dimaklumkan…" /></div>
             <Button className="w-full" onClick={save} disabled={busy}>{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Simpan</Button>
-            <div className="grid grid-cols-2 gap-2">
-              <Button variant="secondary" asChild><a href={mailtoFor(report, photo)}><Mail className="mr-1 h-4 w-4" />Jana ke E-mel</a></Button>
+            <div className="flex flex-wrap gap-2">
+              <ReportExport report={report} photo={photo} />
               <Button variant="destructive" disabled={busy} onClick={remove}><Trash2 className="mr-1 h-4 w-4" />Padam</Button>
             </div>
           </div>

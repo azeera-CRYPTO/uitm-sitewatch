@@ -57,7 +57,7 @@ export type Report = {
   zone: string;
   building: string;
   notes: string | null;
-  photo_path: string;
+  photo_path: string | null;
   admin_notes: string | null;
 };
 

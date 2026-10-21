@@ -1,0 +1,1 @@
+ALTER TABLE public.reports ALTER COLUMN photo_path DROP NOT NULL;

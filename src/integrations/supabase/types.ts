@@ -50,7 +50,7 @@ export type Database = {
           latitude: number
           longitude: number
           notes: string | null
-          photo_path: string
+          photo_path: string | null
           staff_id: string
           staff_name: string
           status: string
@@ -69,7 +69,7 @@ export type Database = {
           latitude: number
           longitude: number
           notes?: string | null
-          photo_path: string
+          photo_path?: string | null
           staff_id: string
           staff_name: string
           status: string
@@ -88,7 +88,7 @@ export type Database = {
           latitude?: number
           longitude?: number
           notes?: string | null
-          photo_path?: string
+          photo_path?: string | null
           staff_id?: string
           staff_name?: string
           status?: string

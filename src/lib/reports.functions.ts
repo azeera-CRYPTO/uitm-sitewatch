@@ -25,6 +25,7 @@ export const deleteOwnReport = createServerFn({ method: "POST" })
     assertReportOwner(report.user_id, context.userId);
     const { data: removed, error } = await context.supabase.from("reports").delete().eq("id", data.id).eq("user_id", context.userId).select("id").single();
     if (error || !removed) throw new Error("Laporan gagal dipadam.");
+    if (!report.photo_path) return { ok: true, photoRemoved: true };
     // Privileged cleanup is limited to the verified owner's stored photo path,
     // including older photos whose paths predate user folders.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

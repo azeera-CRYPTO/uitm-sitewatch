@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, Pencil, Trash2 } from "lucide-react";
+import { ArrowUpDown, Loader2, Pencil, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ export function StaffManager({ reports, selfId }: { reports: Report[]; selfId: s
   const [rows, setRows] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
+  const [sort, setSort] = useState<"name-asc" | "name-desc" | "count-desc" | "count-asc">("name-asc");
   const [edit, setEdit] = useState<Profile | null>(null);
   const [del, setDel] = useState<Profile | null>(null);
   const [busy, setBusy] = useState(false);
@@ -36,7 +37,7 @@ export function StaffManager({ reports, selfId }: { reports: Report[]; selfId: s
     return m;
   }, [reports]);
 
-  const shown = rows.filter((p) => `${p.staff_name} ${p.staff_id} ${p.email}`.toLowerCase().includes(q.toLowerCase()));
+  const shown = rows.filter((p) => `${p.staff_name} ${p.staff_id} ${p.email}`.toLowerCase().includes(q.toLowerCase())).sort((a, b) => sort.startsWith("name") ? (sort === "name-asc" ? 1 : -1) * a.staff_name.localeCompare(b.staff_name, "ms-MY", { sensitivity: "base" }) : (sort === "count-asc" ? 1 : -1) * ((counts[a.id] ?? 0) - (counts[b.id] ?? 0)));
 
   const save = async () => {
     if (!edit) return;
@@ -65,7 +66,7 @@ export function StaffManager({ reports, selfId }: { reports: Report[]; selfId: s
       <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
         <table className="w-full min-w-[700px] text-sm">
           <thead className="bg-primary/5 text-left text-xs uppercase tracking-wide text-muted-foreground">
-            <tr>{["Nama", "No. Staf / Unit", "E-mel", "Tarikh Daftar", "Laporan", ""].map((h) => <th key={h} className="px-3 py-3">{h}</th>)}</tr>
+            <tr>{["Nama", "No. Staf / Unit", "E-mel", "Tarikh Daftar", "Laporan", ""].map((h) => <th key={h} className="px-3 py-3">{h === "Nama" || h === "Laporan" ? <Button variant="ghost" size="sm" onClick={() => setSort(h === "Nama" ? (sort === "name-asc" ? "name-desc" : "name-asc") : (sort === "count-desc" ? "count-asc" : "count-desc"))}>{h}<ArrowUpDown className="ml-1 h-3.5 w-3.5" /></Button> : h}</th>)}</tr>
           </thead>
           <tbody>
             {loading ? <tr><td colSpan={6} className="p-8 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></td></tr>
