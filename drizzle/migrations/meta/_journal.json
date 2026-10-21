@@ -36,6 +36,13 @@
       "when": 1792461822990,
       "tag": "0004_own_profile_update",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792554137512,
+      "tag": "0005_optional_report_photo",
+      "breakpoints": true
     }
   ]
 }
