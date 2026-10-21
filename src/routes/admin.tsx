@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import type { Session } from "@supabase/supabase-js";
-import { Download, Loader2, LogOut, ArrowUpDown, MapPin, Table2, Trash2, Users } from "lucide-react";
+import { Download, Loader2, LogOut, ArrowUpDown, MapPin, Table2, Trash2, Users, FileText } from "lucide-react";
 import { ReportExport } from "@/components/ReportExport";
 import { sortReports, photoPaths, type ReportSort } from "@/lib/report-output";
 import { StaffManager } from "@/components/StaffManager";
@@ -10,7 +10,7 @@ import { GoogleSignIn } from "@/components/GoogleSignIn";
 import { UitmLogo } from "@/components/UitmLogo";
 
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -181,8 +181,12 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
             <h1 className="text-lg font-bold sm:text-xl">Sistem Pelaporan & Pemantauan Tugasan Tapak</h1>
           </div>
           <div className="flex items-center gap-2">
-            <span className="hidden text-xs opacity-80 sm:inline">{email}</span>
-            <Button size="sm" variant="secondary" onClick={() => supabase.auth.signOut()}><LogOut className="h-4 w-4" /></Button>
+            <span className="hidden text-xs opacity-80 lg:inline">{email}</span>
+            <Link to="/" aria-label="Borang Pelaporan" title="Borang Pelaporan" className={buttonVariants({ size: "sm", variant: "secondary" })}>
+              <FileText className="h-4 w-4" />
+              <span className="hidden sm:inline">Borang Pelaporan</span>
+            </Link>
+            <Button size="sm" variant="outline" onClick={() => supabase.auth.signOut()}><LogOut className="h-4 w-4" /></Button>
           </div>
         </div>
         <div className="h-1 bg-secondary" />
