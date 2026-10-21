@@ -21,7 +21,7 @@ export async function generateReportPdf(report: Report, photo?: string) {
     ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
     ctx.fillRect(0, 0, 1, 1);
     const p = ctx.getImageData(0, 0, 1, 1).data;
-    return [p[0], p[1], p[2]];
+    return [p[0] ?? 0, p[1] ?? 0, p[2] ?? 0];
   };
   const primary = token("--primary");
   const gold = token("--secondary");

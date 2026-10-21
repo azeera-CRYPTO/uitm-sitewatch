@@ -7,7 +7,7 @@ import { generateReportPdf, downloadPdf } from "@/lib/report-pdf";
 import { whatsappText } from "@/lib/report-output";
 import type { Report } from "@/lib/locations";
 
-export function ReportExport({ report, photo }: { report: Report; photo?: string }) {
+export function ReportExport({ report, photo }: { report: Report; photo?: string | undefined }) {
   const [busy, setBusy] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [open, setOpen] = useState(false);
