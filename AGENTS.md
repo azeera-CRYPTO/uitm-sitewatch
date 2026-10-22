@@ -15,3 +15,4 @@
 - Generate report PDFs in the browser through a shared export control; use native file sharing when supported and a download plus WhatsApp message fallback, because WhatsApp links cannot attach local files.
 - Represent missing report photos as null and filter empty paths before storage calls so optional evidence does not create invalid uploads or cleanup requests.
 - Admin bulk report deletion uses an authenticated server function with a server-verified admin role and RLS; clean only photos returned by successful deletions and not referenced by remaining reports to prevent unintended removal.
+- Keep map pin types and status filtering in a browser-safe module; lazy-load Leaflet and its clustering plugin behind ClientOnly, enabling clustering only for the admin map so staff GPS previews stay focused.
