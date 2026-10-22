@@ -1,5 +1,5 @@
 # Kemas kini
-- [ ] Kotak pilihan laporan admin, pilih semua hasil tapisan, pengesahan padam pukal dan pembersihan foto; uji aliran sebenar.
+- [x] Kotak pilihan laporan admin, pilih semua hasil tapisan, pengesahan padam pukal dan pembersihan foto; diuji dengan laporan sebenar, pembatalan, laporan tidak dipilih dan telefon.
 - [x] Butang "Borang Pelaporan" pada pengepala admin untuk kembali ke borang staf; ikon log keluar diperbetulkan supaya kelihatan.
 - [x] Bukti Visual pilihan, nilai foto kosong dan paparan Tiada foto.
 - [x] Ganti jana e-mel dengan PDF dan perkongsian WhatsApp untuk staf/admin; lampiran manual apabila perkongsian fail tidak disokong.
