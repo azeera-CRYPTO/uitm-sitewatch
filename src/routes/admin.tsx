@@ -6,7 +6,8 @@ import { visibleSelectedIds } from "@/lib/admin-report-rules";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import type { Session } from "@supabase/supabase-js";
-import { Download, Loader2, LogOut, ArrowUpDown, MapPin, Table2, Trash2, Users, FileText } from "lucide-react";
+import { Download, Loader2, LogOut, ArrowUpDown, MapPin, Table2, Trash2, Users, FileText, Eye, EyeOff } from "lucide-react";
+import { filterMapReports, mapStatusClass, toggleMapStatus } from "@/lib/map-reports";
 import { ReportExport } from "@/components/ReportExport";
 import { sortReports, photoPaths, type ReportSort } from "@/lib/report-output";
 import { StaffManager } from "@/components/StaffManager";
@@ -117,7 +118,6 @@ function LoginForm() {
 
 const statusVariant = (s: string) =>
   s === "Selesai" ? "bg-success text-success-foreground" : s === HIGH_PRIORITY ? "bg-destructive text-destructive-foreground" : s === "Dalam Tindakan" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground";
-const statusColor = (s: string) => (s === "Selesai" ? "#16a34a" : s === HIGH_PRIORITY ? "#dc2626" : s === "Dalam Tindakan" ? "#5b2a86" : "#d4a017");
 
 function Dashboard({ email, selfId }: { email: string; selfId: string }) {
   const [rows, setRows] = useState<Report[]>([]);
@@ -129,6 +129,7 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
   const [cat, setCat] = useState("all");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<ReportSort>("date-desc");
+  const [visibleStatuses, setVisibleStatuses] = useState<string[]>([...ADMIN_STATUSES]);
   const toggleSort = (field: "date" | "name") => setSort((old) => old === `${field}-asc` ? `${field}-desc` : `${field}-asc`);
   const [selected, setSelected] = useState<Report | null>(null);
   const [checkedIds, setCheckedIds] = useState<string[]>([]);
@@ -184,7 +185,8 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
     } finally { setDeleting(false); }
   };
 
-  const pins = useMemo(() => filtered.map((r) => ({ id: r.id, lat: r.latitude, lng: r.longitude, color: statusColor(r.status) })), [filtered]);
+  const mapRows = useMemo(() => filterMapReports(filtered, visibleStatuses), [filtered, visibleStatuses]);
+  const pins = useMemo(() => mapRows.map((r) => ({ id: r.id, lat: r.latitude, lng: r.longitude, status: r.status })), [mapRows]);
   const onPin = useCallback((id: string) => setSelected(rows.find((r) => r.id === id) ?? null), [rows]);
 
   const exportCsv = () => {
@@ -287,9 +289,27 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
             <StaffManager reports={rows} selfId={selfId} />
           </TabsContent>
           <TabsContent value="map">
-            <div className="rounded-xl border bg-card p-3 shadow-sm">
-              <ClientMap pins={pins} height={520} onPinClick={onPin} />
-              <p className="mt-2 text-xs text-muted-foreground">Klik pin untuk melihat butiran laporan.</p>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold">Status pada peta</h2>
+              <div className="flex gap-2">
+                <Button size="sm" variant="ghost" onClick={() => setVisibleStatuses([...ADMIN_STATUSES])}><Eye />Papar semua</Button>
+                <Button size="sm" variant="ghost" onClick={() => setVisibleStatuses([])}><EyeOff />Sembunyi semua</Button>
+              </div>
+            </div>
+            <div className="mb-3 flex flex-wrap gap-2">
+              {ADMIN_STATUSES.map((status) => {
+                const visible = visibleStatuses.includes(status);
+                const count = filtered.filter((row) => row.status === status).length;
+                return <Button key={status} size="sm" variant="outline" className={visible ? "border-primary bg-accent text-accent-foreground" : "text-muted-foreground"} aria-pressed={visible} aria-label={`${visible ? "Sembunyi" : "Papar"} ${status}`} onClick={() => setVisibleStatuses((current) => toggleMapStatus(current, status))}>
+                  <span className={`map-status-swatch ${mapStatusClass(status)} h-3 w-3 shrink-0 rounded-full`} aria-hidden="true" />
+                  {status} ({count}){visible ? <Eye /> : <EyeOff />}
+                </Button>;
+              })}
+            </div>
+            <div className="mb-2 text-sm text-muted-foreground" role="status">{mapRows.length} daripada {filtered.length} laporan dipaparkan</div>
+            <div className="relative">
+              <ClientMap pins={pins} clustered height={520} onPinClick={onPin} />
+              {pins.length === 0 && <div className="absolute inset-x-4 top-3 z-[500] rounded-md border bg-background p-3 text-center text-sm" role="status">Tiada laporan untuk status dan penapis dipilih.</div>}
             </div>
           </TabsContent>
         </Tabs>
