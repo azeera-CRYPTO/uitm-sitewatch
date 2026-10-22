@@ -1,5 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { deleteAdminReports } from "@/lib/admin-reports.functions";
+import { visibleSelectedIds } from "@/lib/admin-report-rules";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import type { Session } from "@supabase/supabase-js";
 import { Download, Loader2, LogOut, ArrowUpDown, MapPin, Table2, Trash2, Users, FileText } from "lucide-react";
@@ -127,6 +131,11 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
   const [sort, setSort] = useState<ReportSort>("date-desc");
   const toggleSort = (field: "date" | "name") => setSort((old) => old === `${field}-asc` ? `${field}-desc` : `${field}-asc`);
   const [selected, setSelected] = useState<Report | null>(null);
+  const [checkedIds, setCheckedIds] = useState<string[]>([]);
+  const [deleteIds, setDeleteIds] = useState<string[]>([]);
+  const [deleting, setDeleting] = useState(false);
+  const deleteFn = useServerFn(deleteAdminReports);
+  useEffect(() => { setCheckedIds([]); }, [from, to, zone, cat, query]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -134,6 +143,7 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
     if (error) toast.error(error.message);
     const list = (data ?? []) as Report[];
     setRows(list);
+    setCheckedIds((ids) => visibleSelectedIds(ids, list));
     if (photoPaths(list).length) {
       const { data: signed } = await supabase.storage.from("report-photos").createSignedUrls(photoPaths(list), 3600);
       const map: Record<string, string> = {};
@@ -153,6 +163,26 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
     if (cat !== "all" && r.category !== cat) return false;
     return !!d;
   }), sort, query), [rows, from, to, zone, cat, sort, query]);
+
+  const checkedVisible = visibleSelectedIds(checkedIds, filtered);
+  const allChecked = filtered.length > 0 && checkedVisible.length === filtered.length;
+  const removeChecked = async () => {
+    if (!deleteIds.length || deleting) return;
+    setDeleting(true);
+    try {
+      const result = await deleteFn({ data: { ids: deleteIds } });
+      const removed = new Set(result.deletedIds);
+      setRows((current) => current.filter((row) => !removed.has(row.id)));
+      setCheckedIds((current) => current.filter((id) => !removed.has(id)));
+      setDeleteIds([]);
+      if (result.deletedIds.length) toast.success(`${result.deletedIds.length} laporan dipadam.`);
+      else toast.info("Laporan terpilih sudah tiada.");
+      if (!result.photoRemoved) toast.warning("Laporan dipadam, tetapi sebahagian foto belum dapat dibersihkan.");
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Laporan gagal dipadam.");
+    } finally { setDeleting(false); }
+  };
 
   const pins = useMemo(() => filtered.map((r) => ({ id: r.id, lat: r.latitude, lng: r.longitude, color: statusColor(r.status) })), [filtered]);
   const onPin = useCallback((id: string) => setSelected(rows.find((r) => r.id === id) ?? null), [rows]);
@@ -219,16 +249,24 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
             <TabsTrigger value="staff"><Users className="mr-1 h-4 w-4" />Senarai Staf</TabsTrigger>
           </TabsList>
           <TabsContent value="table">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-sm text-muted-foreground" role="status">{checkedVisible.length} laporan dipilih</span>
+              <div className="flex flex-wrap gap-2">
+                {checkedVisible.length > 0 && <Button variant="outline" size="sm" disabled={deleting} onClick={() => setCheckedIds([])}>Batal pilihan</Button>}
+                <Button variant="destructive" size="sm" disabled={!checkedVisible.length || loading || deleting} onClick={() => setDeleteIds([...checkedVisible])}><Trash2 className="mr-1 h-4 w-4" />Padam terpilih ({checkedVisible.length})</Button>
+              </div>
+            </div>
             <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
               <table className="w-full min-w-[1100px] text-sm">
                 <thead className="bg-primary/5 text-left text-xs uppercase tracking-wide text-muted-foreground">
-                  <tr>{["Masa", "Staf", "Kategori", "Zon", "Bangunan", "Status", "Catatan", "Foto", "GPS", ""].map((h) => <th key={h} className="px-3 py-3" aria-sort={h === "Masa" && sort.startsWith("date") || h === "Staf" && sort.startsWith("name") ? (sort.endsWith("asc") ? "ascending" : "descending") : undefined}>{h === "Masa" || h === "Staf" ? <Button size="sm" variant="ghost" onClick={() => toggleSort(h === "Masa" ? "date" : "name")}>{h}<ArrowUpDown className="ml-1 h-3.5 w-3.5" /></Button> : h}</th>)}</tr>
+                  <tr><th className="w-12 px-3 py-3"><Checkbox aria-label="Pilih semua laporan dipaparkan" checked={allChecked ? true : checkedVisible.length ? "indeterminate" : false} disabled={!filtered.length || loading || deleting} onCheckedChange={(checked) => setCheckedIds(checked === true ? filtered.map((row) => row.id) : [])} /></th>{["Masa", "Staf", "Kategori", "Zon", "Bangunan", "Status", "Catatan", "Foto", "GPS", ""].map((h) => <th key={h} className="px-3 py-3" aria-sort={h === "Masa" && sort.startsWith("date") || h === "Staf" && sort.startsWith("name") ? (sort.endsWith("asc") ? "ascending" : "descending") : undefined}>{h === "Masa" || h === "Staf" ? <Button size="sm" variant="ghost" onClick={() => toggleSort(h === "Masa" ? "date" : "name")}>{h}<ArrowUpDown className="ml-1 h-3.5 w-3.5" /></Button> : h}</th>)}</tr>
                 </thead>
                 <tbody>
-                  {loading ? <tr><td colSpan={10} className="p-8 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></td></tr>
-                    : filtered.length === 0 ? <tr><td colSpan={10} className="p-8 text-center text-muted-foreground">Tiada laporan.</td></tr>
+                  {loading ? <tr><td colSpan={11} className="p-8 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></td></tr>
+                    : filtered.length === 0 ? <tr><td colSpan={11} className="p-8 text-center text-muted-foreground">Tiada laporan.</td></tr>
                     : filtered.map((r) => (
                       <tr key={r.id} className="border-t align-top hover:bg-muted/50">
+                        <td className="px-3 py-3"><Checkbox aria-label={`Pilih laporan ${r.staff_name} ${r.id}`} checked={checkedVisible.includes(r.id)} disabled={deleting} onCheckedChange={(checked) => setCheckedIds((ids) => checked === true ? [...new Set([...ids, r.id])] : ids.filter((id) => id !== r.id))} /></td>
                         <td className="whitespace-nowrap px-3 py-2">{new Date(r.captured_at).toLocaleString("ms-MY")}</td>
                         <td className="px-3 py-2"><div className="font-medium">{r.staff_name}</div><div className="text-xs text-muted-foreground">{r.staff_id}</div></td>
                         <td className="px-3 py-2">{r.category}</td>
@@ -258,6 +296,16 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
       </main>
 
       <ReportDialog report={selected} photo={selected ? photos[selected.photo_path ?? ""] : undefined} onClose={() => setSelected(null)} onSaved={load} />
+      <Dialog open={deleteIds.length > 0} onOpenChange={(open) => { if (!open && !deleting) setDeleteIds([]); }}>
+        <DialogContent onEscapeKeyDown={(event) => { if (deleting) event.preventDefault(); }} onPointerDownOutside={(event) => { if (deleting) event.preventDefault(); }}>
+          <DialogHeader><DialogTitle>Padam {deleteIds.length} laporan terpilih?</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Laporan terpilih dan foto berkaitan akan dipadam secara kekal. Tindakan ini tidak boleh dibatalkan.</p>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" disabled={deleting} onClick={() => setDeleteIds([])}>Batal</Button>
+            <Button variant="destructive" disabled={deleting} onClick={removeChecked}>{deleting ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Trash2 className="mr-1 h-4 w-4" />}Ya, padam {deleteIds.length} laporan</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
