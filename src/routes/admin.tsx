@@ -186,7 +186,7 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
               <FileText className="h-4 w-4" />
               <span className="hidden sm:inline">Borang Pelaporan</span>
             </Link>
-            <Button size="sm" variant="outline" onClick={() => supabase.auth.signOut()}><LogOut className="h-4 w-4" /></Button>
+            <Button size="sm" variant="outline" className="text-foreground" onClick={() => supabase.auth.signOut()}><LogOut className="h-4 w-4" /></Button>
           </div>
         </div>
         <div className="h-1 bg-secondary" />
