@@ -32,7 +32,10 @@ export default function LeafletMap({ pins, height = 200, clustered = false, onPi
       },
     }) : L.layerGroup()).addTo(map);
     mapRef.current = map;
+    const observer = new ResizeObserver(() => map.invalidateSize({ pan: true }));
+    observer.observe(ref.current);
     return () => {
+      observer.disconnect();
       map.remove();
       mapRef.current = null;
       layerRef.current = null;
