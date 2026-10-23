@@ -1,5 +1,5 @@
 # Kemas kini
-- [ ] Pengelompokan penanda peta admin dan pilihan papar/sembunyi mengikut status; uji kelompok, tapisan dan butiran laporan.
+- [x] Pengelompokan penanda peta admin dan pilihan papar/sembunyi mengikut status; diuji dengan laporan sebenar, kelompok bertindih, butiran laporan dan telefon.
 - [x] Kotak pilihan laporan admin, pilih semua hasil tapisan, pengesahan padam pukal dan pembersihan foto; diuji dengan laporan sebenar, pembatalan, laporan tidak dipilih dan telefon.
 - [x] Butang "Borang Pelaporan" pada pengepala admin untuk kembali ke borang staf; ikon log keluar diperbetulkan supaya kelihatan.
 - [x] Bukti Visual pilihan, nilai foto kosong dan paparan Tiada foto.
