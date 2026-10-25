@@ -14,4 +14,5 @@
 - [x] Staf mengemas kini dan memadam laporan sendiri dengan perlindungan pemilikan.
 - [x] Logo UiTM dan Google pada log masuk staf/admin.
 - [x] Uji kemas kini, padam dan paparan log masuk.
+- [x] Kad Ringkasan KPI Sepintas Lalu di bahagian atas paparan admin (Jumlah, Tindakan Lanjut, Dalam Proses, Kadar Selesai %), mengikut tapisan semasa dan senarai status admin; ujian KPI lulus dan disemak dalam paparan admin sebenar.
 - [ ] Pengesahan Google hingga selesai — memerlukan pemilihan akaun Google oleh pengguna.
