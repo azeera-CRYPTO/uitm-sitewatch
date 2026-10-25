@@ -64,11 +64,18 @@ export type Report = {
   contractor_company?: string | null;
 };
 
-export function toCsv(rows: Report[]): string {
-  const head = ["Tarikh/Masa", "Nama", "ID/Unit", "Kategori", "Zon", "Bangunan", "Status", "Catatan", "Catatan Admin", "Latitud", "Longitud", "Ketepatan (m)"];
+export type CsvScope = { id: string; name: string };
+
+export function reporterTypeLabel(type?: string | null): string {
+  return type === "staff" ? "Staf UiTM" : type === "contractor" ? "Kontraktor" : "Rekod lama";
+}
+
+export function toCsv(rows: Report[], scopes: CsvScope[] = []): string {
+  const scopeName = (id?: string | null) => (id ? scopes.find((s) => s.id === id)?.name ?? "" : "");
+  const head = ["Tarikh/Masa", "Nama", "ID/Unit", "Jenis Pelapor", "Skop Kerja", "Nama Syarikat", "Kategori", "Zon", "Bangunan", "Status", "Catatan", "Catatan Admin", "Latitud", "Longitud", "Ketepatan (m)"];
   const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
   const lines = rows.map((r) =>
-    [new Date(r.captured_at).toLocaleString("ms-MY"), r.staff_name, r.staff_id, r.category, r.zone, r.building, r.status, r.notes, r.admin_notes, r.latitude, r.longitude, r.gps_accuracy ? Math.round(r.gps_accuracy) : ""]
+    [new Date(r.captured_at).toLocaleString("ms-MY"), r.staff_name, r.staff_id, reporterTypeLabel(r.reporter_type), scopeName(r.contractor_scope_id), r.contractor_company ?? "", r.category, r.zone, r.building, r.status, r.notes, r.admin_notes, r.latitude, r.longitude, r.gps_accuracy ? Math.round(r.gps_accuracy) : ""]
       .map(esc)
       .join(","),
   );

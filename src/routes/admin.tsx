@@ -212,7 +212,7 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
   const onPin = useCallback((id: string) => setSelected(rows.find((r) => r.id === id) ?? null), [rows]);
 
   const exportCsv = () => {
-    const blob = new Blob([toCsv(filtered)], { type: "text/csv;charset=utf-8" });
+    const blob = new Blob([toCsv(filtered, scopes)], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `laporan-tapak-${new Date().toISOString().slice(0, 10)}.csv`;
