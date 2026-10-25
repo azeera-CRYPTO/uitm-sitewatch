@@ -79,6 +79,36 @@ export type Database = {
           },
         ]
       }
+      report_options: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          kind: string
+          name: string
+          previous_names: string[]
+          status_group: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          kind: string
+          name: string
+          previous_names?: string[]
+          status_group?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          kind?: string
+          name?: string
+          previous_names?: string[]
+          status_group?: string
+        }
+        Relationships: []
+      }
       reports: {
         Row: {
           admin_notes: string | null
