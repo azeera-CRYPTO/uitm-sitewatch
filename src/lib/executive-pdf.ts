@@ -1,12 +1,13 @@
+import type { ReportOption } from "./report-options";
 import type { Report } from "./locations";
 import { executiveSummary, type ContractorScope } from "./contractor-rules";
 import { loadImage, pdfThemeColor } from "./report-pdf";
 import logo from "@/assets/uitm-logo-only.png.asset.json";
 
-export type ExecutiveOptions = { from: string; to: string; filters: string; prepared: string; approved: string };
+export type ExecutiveOptions = { from: string; to: string; filters: string; prepared: string; approved: string; statuses?: ReportOption[] };
 export async function generateExecutivePdf(rows: Report[], scopes: ContractorScope[], options: ExecutiveOptions) {
   const { jsPDF } = await import("jspdf");
-  const doc = new jsPDF(); const summary = executiveSummary(rows, scopes);
+  const doc = new jsPDF(); const summary = executiveSummary(rows, scopes, options.statuses);
   const primary = pdfThemeColor("--primary"), gold = pdfThemeColor("--secondary"), ink = pdfThemeColor("--foreground");
   const officialLogo = await loadImage(logo.url);
   let y = 46;

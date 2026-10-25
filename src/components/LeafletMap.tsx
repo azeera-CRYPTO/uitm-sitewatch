@@ -52,7 +52,7 @@ export default function LeafletMap({ pins, height = 200, clustered = false, onPi
       const primary = getComputedStyle(document.documentElement).getPropertyValue("--primary").trim();
       if (p.accuracy && !clustered) L.circle([p.lat, p.lng], { radius: p.accuracy, color: p.color ?? primary, weight: 1, fillOpacity: 0.1 }).addTo(layer);
       const m = L.marker([p.lat, p.lng], { icon: L.divIcon({
-        className: `report-map-pin ${mapStatusClass(p.status)}`,
+        className: `report-map-pin ${p.statusClass ?? mapStatusClass(p.status)}`,
         html: '<span></span>', iconSize: [22, 22], iconAnchor: [11, 11],
       }), title: p.status ? `${p.status} — ${p.id}` : "Lokasi laporan" }).addTo(layer);
       if (p.popup) { const text = document.createElement("span"); text.textContent = p.popup; m.bindPopup(text); }

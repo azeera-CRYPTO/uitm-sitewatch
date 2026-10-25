@@ -1,4 +1,5 @@
 # Kemas kini
+- [ ] Kategori dan status dinamik: pengurusan admin, pilihan borang/edit/tapisan/peta/PDF, perlindungan laporan lama dan ujian.
 - [x] Pendaftaran staf/kontraktor bersyarat, maklumat pelapor automatik, Senarai Pengguna dan tapisan jenis pelapor admin; 27 ujian lulus. Diuji daftar kontraktor, hantar laporan, baca semula/tapis admin, tukar kepada staf dan paparan telefon; rekod ujian dibersihkan serta profil asal dipulihkan.
 - [x] Borang bersama staf/kontraktor dengan skop pilihan dan nama syarikat setiap laporan; diuji hantar, kemas kini, baca semula sejarah, kandungan PDF dan telefon menggunakan akaun admin; ujian peraturan pemilikan lulus. Pertukaran peta/borang tanpa ralat selepas pembetulan animasi.
 - [x] Pengurusan skop kontraktor admin dan agihan skop/syarikat bagi laporan; diuji tambah/edit/padam, simpan/baca semula, maklumat staf kekal dan laporan dikekalkan apabila skop dipadam.

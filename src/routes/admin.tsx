@@ -4,6 +4,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { deleteAdminReports } from "@/lib/admin-reports.functions";
 import { editAdminReport } from "@/lib/contractors.functions";
 import { changedFields, type ContractorScope } from "@/lib/contractor-rules";
+import { useQuery } from "@tanstack/react-query";
+import { reportOptionsQuery } from "@/lib/report-options-query";
+import { optionNames, reportStatusGroup, reportStatusBadge } from "@/lib/report-options";
+import { ReportOptionManager } from "@/components/ReportOptionManager";
 import { ContractorScopes } from "@/components/ContractorScopes";
 import { ExecutiveExport } from "@/components/ExecutiveExport";
 import { visibleSelectedIds } from "@/lib/admin-report-rules";
@@ -28,7 +32,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ClientMap } from "@/components/ClientMap";
-import { ADMIN_STATUSES, CATEGORIES, HIGH_PRIORITY, ZONES, toCsv, type Report } from "@/lib/locations";
+import { ZONES, toCsv, type Report } from "@/lib/locations";
 import { reporterLabel, type ReporterProfile } from "@/lib/profile-rules";
 
 export const Route = createFileRoute("/admin")({
@@ -121,10 +125,8 @@ function LoginForm() {
   );
 }
 
-const statusVariant = (s: string) =>
-  s === "Selesai" ? "bg-success text-success-foreground" : s === HIGH_PRIORITY ? "bg-destructive text-destructive-foreground" : s === "Dalam Tindakan" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground";
-
 function Dashboard({ email, selfId }: { email: string; selfId: string }) {
+  const { data: options = [], refetch: reloadOptions } = useQuery(reportOptionsQuery);
   const [rows, setRows] = useState<Report[]>([]);
   const [scopes, setScopes] = useState<ContractorScope[]>([]);
   const [scopeFilter, setScopeFilter] = useState("all");
@@ -138,7 +140,9 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
   const [cat, setCat] = useState("all");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<ReportSort>("date-desc");
-  const [visibleStatuses, setVisibleStatuses] = useState<string[]>([...ADMIN_STATUSES]);
+  const [hiddenStatuses, setHiddenStatuses] = useState<string[]>([]);
+  const statuses = optionNames(options, "status", rows.map((r) => r.status));
+  const visibleStatuses = statuses.filter((s) => !hiddenStatuses.includes(s));
   const toggleSort = (field: "date" | "name") => setSort((old) => old === `${field}-asc` ? `${field}-desc` : `${field}-asc`);
   const [selected, setSelected] = useState<Report | null>(null);
   const [checkedIds, setCheckedIds] = useState<string[]>([]);
@@ -204,7 +208,7 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
   };
 
   const mapRows = useMemo(() => filterMapReports(filtered, visibleStatuses), [filtered, visibleStatuses]);
-  const pins = useMemo(() => mapRows.map((r) => ({ id: r.id, lat: r.latitude, lng: r.longitude, status: r.status })), [mapRows]);
+  const pins = useMemo(() => mapRows.map((r) => ({ id: r.id, lat: r.latitude, lng: r.longitude, status: r.status, statusClass: mapStatusClass(r.status, options) })), [mapRows, options]);
   const onPin = useCallback((id: string) => setSelected(rows.find((r) => r.id === id) ?? null), [rows]);
 
   const exportCsv = () => {
@@ -217,9 +221,9 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
 
   const counts = {
     total: filtered.length,
-    high: filtered.filter((r) => r.status === HIGH_PRIORITY).length,
-    action: filtered.filter((r) => r.status === "Dalam Tindakan" || r.status === "Dalam Proses").length,
-    done: filtered.filter((r) => r.status === "Selesai").length,
+    high: filtered.filter((r) => reportStatusGroup(r.status, options) === "urgent").length,
+    action: filtered.filter((r) => reportStatusGroup(r.status, options) === "progress").length,
+    done: filtered.filter((r) => reportStatusGroup(r.status, options) === "done").length,
   };
 
   return (
@@ -254,7 +258,7 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
           <div className="space-y-1.5"><Label>Dari tarikh</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
           <div className="space-y-1.5"><Label>Hingga tarikh</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
           <FilterSel label="Zon" value={zone} onChange={setZone} items={Object.keys(ZONES)} />
-          <FilterSel label="Kategori" value={cat} onChange={setCat} items={CATEGORIES} />
+          <FilterSel label="Kategori" value={cat} onChange={setCat} items={optionNames(options, "category", rows.map((r) => r.category))} />
           <div className="flex items-end"><Button className="w-full" variant="secondary" onClick={exportCsv}><Download className="mr-2 h-4 w-4" />Eksport Excel/CSV</Button></div>
         </div>
 
@@ -272,6 +276,8 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
             <TabsTrigger value="table"><Table2 className="mr-1 h-4 w-4" />Jadual</TabsTrigger>
             <TabsTrigger value="map"><MapPin className="mr-1 h-4 w-4" />Peta</TabsTrigger>
             <TabsTrigger value="staff"><Users className="mr-1 h-4 w-4" />Senarai Pengguna</TabsTrigger>
+            <TabsTrigger value="categories">Kategori Laporan</TabsTrigger>
+            <TabsTrigger value="statuses">Status Tugasan</TabsTrigger>
             <TabsTrigger value="scopes"><Users className="mr-1 h-4 w-4" />Skop Kontraktor</TabsTrigger>
           </TabsList>
           <TabsContent value="table">
@@ -298,7 +304,7 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
                         <td className="px-3 py-2">{r.category}<div className="mt-1 text-xs text-primary">{scopes.find((s) => s.id === r.contractor_scope_id)?.name ?? "Belum diagihkan"}</div>{r.contractor_company && <div className="text-xs text-muted-foreground">{r.contractor_company}</div>}</td>
                         <td className="px-3 py-2">{r.zone}</td>
                         <td className="px-3 py-2">{r.building}</td>
-                        <td className="px-3 py-2"><Badge className={statusVariant(r.status)}>{r.status}</Badge></td>
+                        <td className="px-3 py-2"><Badge className={reportStatusBadge(r.status, options)}>{r.status}</Badge></td>
                         <td className="max-w-[200px] px-3 py-2 text-xs">{r.notes}{r.admin_notes && <div className="mt-1 italic text-primary">Admin: {r.admin_notes}</div>}</td>
                         <td className="px-3 py-2">{photos[r.photo_path ?? ""] ? <a href={photos[r.photo_path ?? ""]} target="_blank" rel="noreferrer"><img src={photos[r.photo_path ?? ""]} alt="Bukti" className="h-14 w-14 rounded object-cover" /></a> : <Badge variant="outline">{r.photo_path ? "Foto belum tersedia" : "Tiada foto"}</Badge>}</td>
                         <td className="whitespace-nowrap px-3 py-2 font-mono text-xs"><a className="text-primary hover:underline" target="_blank" rel="noreferrer" href={`https://www.google.com/maps?q=${r.latitude},${r.longitude}`}>{r.latitude.toFixed(5)}, {r.longitude.toFixed(5)}</a></td>
@@ -313,20 +319,22 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
             <StaffManager reports={rows} selfId={selfId} onSaved={load} />
           </TabsContent>
           <TabsContent value="scopes"><ContractorScopes scopes={scopes} onSaved={load} /></TabsContent>
+          <TabsContent value="categories"><ReportOptionManager kind="category" options={options} onSaved={reloadOptions} /></TabsContent>
+          <TabsContent value="statuses"><ReportOptionManager kind="status" options={options} onSaved={reloadOptions} /></TabsContent>
           <TabsContent value="map">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-sm font-semibold">Status pada peta</h2>
               <div className="flex gap-2">
-                <Button size="sm" variant="ghost" onClick={() => setVisibleStatuses([...ADMIN_STATUSES])}><Eye />Papar semua</Button>
-                <Button size="sm" variant="ghost" onClick={() => setVisibleStatuses([])}><EyeOff />Sembunyi semua</Button>
+                <Button size="sm" variant="ghost" onClick={() => setHiddenStatuses([])}><Eye />Papar semua</Button>
+                <Button size="sm" variant="ghost" onClick={() => setHiddenStatuses(statuses)}><EyeOff />Sembunyi semua</Button>
               </div>
             </div>
             <div className="mb-3 flex flex-wrap gap-2">
-              {ADMIN_STATUSES.map((status) => {
+              {statuses.map((status) => {
                 const visible = visibleStatuses.includes(status);
                 const count = filtered.filter((row) => row.status === status).length;
-                return <Button key={status} size="sm" variant="outline" className={visible ? "border-primary bg-accent text-accent-foreground" : "text-muted-foreground"} aria-pressed={visible} aria-label={`${visible ? "Sembunyi" : "Papar"} ${status}`} onClick={() => setVisibleStatuses((current) => toggleMapStatus(current, status))}>
-                  <span className={`map-status-swatch ${mapStatusClass(status)} h-3 w-3 shrink-0 rounded-full`} aria-hidden="true" />
+                return <Button key={status} size="sm" variant="outline" className={visible ? "border-primary bg-accent text-accent-foreground" : "text-muted-foreground"} aria-pressed={visible} aria-label={`${visible ? "Sembunyi" : "Papar"} ${status}`} onClick={() => setHiddenStatuses((current) => toggleMapStatus(current, status))}>
+                  <span className={`map-status-swatch ${mapStatusClass(status, options)} h-3 w-3 shrink-0 rounded-full`} aria-hidden="true" />
                   {status} ({count}){visible ? <Eye /> : <EyeOff />}
                 </Button>;
               })}
@@ -372,6 +380,7 @@ function FilterSel({ label, value, onChange, items }: { label: string; value: st
 }
 
 function ReportDialog({ report, scopes, photo, onClose, onSaved }: { report: Report | null; scopes: ContractorScope[]; photo?: string | undefined; onClose: () => void; onSaved: () => void }) {
+  const { data: options = [] } = useQuery(reportOptionsQuery);
   const [status, setStatus] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -428,7 +437,7 @@ function ReportDialog({ report, scopes, photo, onClose, onSaved }: { report: Rep
                 <div className="space-y-1.5"><Label>{report.reporter_type === "contractor" ? "Syarikat kontraktor" : "No. Staf / Pengenalan"}</Label><Input value={f.staff_id} onChange={(e) => setF({ ...f, staff_id: e.target.value })} /></div>
               </div>
               <div className="space-y-1.5"><Label>Kategori</Label>
-                <Select value={f.category} onValueChange={(v) => setF({ ...f, category: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
+                <Select value={f.category} onValueChange={(v) => setF({ ...f, category: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{optionNames(options, "category", [report.category]).map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1.5"><Label>Zon</Label>
                   <Select value={f.zone} onValueChange={(v) => setF({ ...f, zone: v, building: "" })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.keys(ZONES).map((z) => <SelectItem key={z} value={z}>{z}</SelectItem>)}</SelectContent></Select></div>
@@ -443,7 +452,7 @@ function ReportDialog({ report, scopes, photo, onClose, onSaved }: { report: Rep
               <Label>Status baharu</Label>
               <Select value={status} onValueChange={setStatus}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{ADMIN_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                <SelectContent>{optionNames(options, "status", [report.status]).map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5"><Label>Catatan tindakan / audit</Label><Textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder="cth. Kontraktor telah dimaklumkan…" /></div>
