@@ -10,8 +10,11 @@ export const editOwnReport = createServerFn({ method: "POST" })
     const { data: report, error: readError } = await context.supabase.from("reports").select("user_id").eq("id", data.id).single();
     if (readError || !report) throw new Error("Laporan tidak ditemui.");
     assertReportOwner(report.user_id, context.userId);
-    const { id, ...fields } = data;
-    const { data: saved, error } = await context.supabase.from("reports").update({ ...fields, notes: fields.notes.trim() || null, updated_at: new Date().toISOString() }).eq("id", id).eq("user_id", context.userId).select("id").single();
+    const { id, contractor_scope_id, contractor_company, ...fields } = data;
+    const { data: saved, error } = await context.supabase.from("reports").update({ ...fields,
+      ...(contractor_scope_id !== undefined ? { contractor_scope_id } : {}),
+      ...(contractor_company !== undefined ? { contractor_company: contractor_company?.trim() || null } : {}),
+      notes: fields.notes.trim() || null, updated_at: new Date().toISOString() }).eq("id", id).eq("user_id", context.userId).select("id").single();
     if (error || !saved) throw new Error("Laporan gagal dikemas kini.");
     return { ok: true };
   });
