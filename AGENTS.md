@@ -18,3 +18,4 @@
 - Keep map pin types and status filtering in a browser-safe module; lazy-load Leaflet and its clustering plugin behind ClientOnly, enabling clustering only for the admin map so staff GPS previews stay focused.
 - Contractor scope CRUD and admin report edits use authenticated, role-verified server functions and RLS; submit only intentionally changed report fields. Report owners may enter and edit their own scope/company; database triggers retain ownership boundaries and original capture data.
 - Executive PDF exports are browser-generated from the exact dashboard-filtered rows using shared aggregation rules; company names are per-report free text, not a separate directory.
+- Reporter profile categories are descriptive, never authorization roles; shared conditional validation and authenticated profile saves enforce staff/contractor details. Report insertion snapshots identity from the authenticated profile in a database trigger, while legacy reports remain unchanged.
