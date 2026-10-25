@@ -1,6 +1,6 @@
 # Kemas kini
-- [ ] Pengurusan skop kontraktor admin dan agihan skop/syarikat bagi laporan, dengan maklumat staf dikekalkan.
-- [ ] Ringkasan eksekutif PDF bertapis, statistik dan tandatangan; uji aliran sebenar dan semak PDF.
+- [x] Pengurusan skop kontraktor admin dan agihan skop/syarikat bagi laporan; diuji tambah/edit/padam, simpan/baca semula, maklumat staf kekal dan laporan dikekalkan apabila skop dipadam.
+- [x] Ringkasan eksekutif PDF bertapis, statistik dan tandatangan; diuji muat turun melalui admin dan semakan visual PDF, baiki simbol anak panah serta ruang tandatangan.
 - [x] Pengelompokan penanda peta admin dan pilihan papar/sembunyi mengikut status; diuji dengan laporan sebenar, kelompok bertindih, butiran laporan dan telefon.
 - [x] Kotak pilihan laporan admin, pilih semua hasil tapisan, pengesahan padam pukal dan pembersihan foto; diuji dengan laporan sebenar, pembatalan, laporan tidak dipilih dan telefon.
 - [x] Butang "Borang Pelaporan" pada pengepala admin untuk kembali ke borang staf; ikon log keluar diperbetulkan supaya kelihatan.
