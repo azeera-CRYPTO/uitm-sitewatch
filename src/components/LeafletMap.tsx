@@ -36,6 +36,7 @@ export default function LeafletMap({ pins, height = 200, clustered = false, onPi
     observer.observe(ref.current);
     return () => {
       observer.disconnect();
+      map.stop();
       map.remove();
       mapRef.current = null;
       layerRef.current = null;
@@ -57,8 +58,8 @@ export default function LeafletMap({ pins, height = 200, clustered = false, onPi
       if (p.popup) { const text = document.createElement("span"); text.textContent = p.popup; m.bindPopup(text); }
       if (onPinClick) m.on("click", () => onPinClick(p.id));
     });
-    if (pins.length === 1 && pins[0]) map.setView([pins[0].lat, pins[0].lng], 17);
-    else if (pins.length > 1) map.fitBounds(L.latLngBounds(pins.map((p) => [p.lat, p.lng])), { padding: [30, 30] });
+    if (pins.length === 1 && pins[0]) map.setView([pins[0].lat, pins[0].lng], 17, { animate: false });
+    else if (pins.length > 1) map.fitBounds(L.latLngBounds(pins.map((p) => [p.lat, p.lng])), { padding: [30, 30], animate: false });
   }, [pins, onPinClick, clustered]);
 
   return <div ref={ref} style={{ height }} className="w-full overflow-hidden rounded-lg border z-0" />;
