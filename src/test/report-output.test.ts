@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { photoPaths, sortReports, whatsappText } from "@/lib/report-output";
-import type { Report } from "@/lib/locations";
+import { toCsv, type Report } from "@/lib/locations";
 
 const base: Report = { id: "a", user_id: "staff", captured_at: "2026-10-20T01:00:00Z", created_at: "2026-10-20T01:00:00Z", staff_name: "Zain", staff_id: "BPF123", category: "Kerja Pembaikan Kecil", zone: "ZON 2", building: "Birda", status: "Selesai", latitude: 5.7, longitude: 102.4, gps_accuracy: 8, notes: "Baik paip", admin_notes: null, photo_path: null };
 const other = { ...base, id: "b", staff_name: "Ali", staff_id: "ABC", captured_at: "2026-10-21T01:00:00Z", photo_path: "staff/photo.jpg" };
