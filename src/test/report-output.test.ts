@@ -29,4 +29,16 @@ describe("report output rules", () => {
     expect(whatsappText(base)).toContain("https://www.google.com/maps?q=5.7,102.4");
     expect(whatsappText(base)).toContain("Zain (BPF123)");
   });
+  it("exports reporter type, work scope and company columns", () => {
+    const contractor: Report = { ...base, id: "c", reporter_type: "contractor", contractor_scope_id: "s2", contractor_company: "Syarikat ABC" };
+    const csv = toCsv([base, contractor], [{ id: "s2", name: "Elektrik" }]);
+    const header = csv.split("\n")[0];
+    expect(header).toContain("Jenis Pelapor");
+    expect(header).toContain("Skop Kerja");
+    expect(header).toContain("Nama Syarikat");
+    const contractorLine = csv.split("\n").find((l) => l.includes("Syarikat ABC"));
+    expect(contractorLine).toContain("Kontraktor");
+    expect(contractorLine).toContain("Elektrik");
+    expect(csv.split("\n").find((l) => l.includes("BPF123"))).toContain("Rekod lama");
+  });
 });
