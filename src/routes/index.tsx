@@ -19,6 +19,10 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ClientMap } from "@/components/ClientMap";
 import { CATEGORIES, STAFF_STATUSES, ZONES, type Report } from "@/lib/locations";
+import { useServerFn } from "@tanstack/react-start";
+import { saveReporterProfile } from "@/lib/profiles.functions";
+import { emptyProfile, profileComplete, reporterLabel, type ProfileInput, type ReporterProfile } from "@/lib/profile-rules";
+import { ReporterProfileFields } from "@/components/ReporterProfileFields";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -41,6 +45,7 @@ function StaffPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"form" | "history">("form");
   const [profileOk, setProfileOk] = useState<boolean | null>(null);
+  const [profile, setProfile] = useState<ReporterProfile | null>(null);
   useEffect(() => {
     const acceptSession = (s: Session | null) => {
       setSession(s);
@@ -57,10 +62,11 @@ function StaffPage() {
   const uid = session?.user.id;
   useEffect(() => {
     if (!uid) { setProfileOk(null); return; }
-    supabase.from("profiles").select("staff_name, staff_id").eq("id", uid).maybeSingle().then(({ data }) => {
-      const ok = !!data?.staff_id?.trim() && !!data?.staff_name?.trim();
-      if (ok && data) { localStorage.setItem("staff_name", data.staff_name); localStorage.setItem("staff_id", data.staff_id); }
-      setProfileOk(ok);
+    setProfileOk(null);
+    supabase.from("profiles").select("*").eq("id", uid).maybeSingle().then(({ data, error }) => {
+      if (error) toast.error("Maklumat pengguna gagal dimuatkan.");
+      setProfile(data);
+      setProfileOk(profileComplete(data));
     });
   }, [uid]);
   return (
@@ -79,13 +85,13 @@ function StaffPage() {
         <div className="h-1 bg-secondary" />
       </header>
       <main className="mx-auto max-w-2xl px-4 py-6">
-        {loading ? <Loader2 className="mx-auto h-6 w-6 animate-spin" /> : !session ? <StaffAuth /> : profileOk === null ? <Loader2 className="mx-auto h-6 w-6 animate-spin" /> : !profileOk ? <StaffOnboarding session={session} onDone={() => setProfileOk(true)} /> : (
+        {loading ? <Loader2 className="mx-auto h-6 w-6 animate-spin" /> : !session ? <StaffAuth /> : profileOk === null ? <Loader2 className="mx-auto h-6 w-6 animate-spin" /> : !profileOk || !profile ? <StaffOnboarding session={session} profile={profile} onDone={(p) => { setProfile(p); setProfileOk(true); }} /> : (
           <>
             <div className="mb-5 grid grid-cols-2 gap-1 rounded-lg bg-card p-1 shadow-sm">
               <Button variant={tab === "form" ? "default" : "ghost"} onClick={() => setTab("form")}><ClipboardPlus className="mr-1 h-4 w-4" />Laporan Baharu</Button>
               <Button variant={tab === "history" ? "default" : "ghost"} onClick={() => setTab("history")}><History className="mr-1 h-4 w-4" />Sejarah Saya</Button>
             </div>
-            {tab === "form" ? <StaffForm session={session} /> : <StaffHistory userId={session.user.id} />}
+            {tab === "form" ? <StaffForm session={session} profile={profile} /> : <StaffHistory userId={session.user.id} />}
           </>
         )}
       </main>
@@ -104,30 +110,26 @@ function StaffAuth() {
   );
 }
 
-function StaffOnboarding({ session, onDone }: { session: Session; onDone: () => void }) {
+function StaffOnboarding({ session, profile, onDone }: { session: Session; profile: ReporterProfile | null; onDone: (p: ReporterProfile) => void }) {
   const meta = session.user.user_metadata ?? {};
-  const [name, setName] = useState<string>(meta['full_name'] ?? meta['name'] ?? "");
-  const [sid, setSid] = useState("");
+  const [value, setValue] = useState<ProfileInput>({ ...emptyProfile, ...profile, user_type: profile?.user_type === "contractor" ? "contractor" : "staff", staff_name: profile?.staff_name || meta['full_name'] || meta['name'] || "" });
+  const save = useServerFn(saveReporterProfile);
   const [busy, setBusy] = useState(false);
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !sid.trim()) { toast.error("Sila isi semua medan."); return; }
     setBusy(true);
-    const { error } = await supabase.from("profiles").update({ staff_name: name.trim(), staff_id: sid.trim() }).eq("id", session.user.id);
-    setBusy(false);
-    if (error) { toast.error(error.message); return; }
-    localStorage.setItem("staff_name", name.trim());
-    localStorage.setItem("staff_id", sid.trim());
-    toast.success("Maklumat staf disimpan.");
-    onDone();
+    try {
+      const saved = await save({ data: { userId: session.user.id, profile: value } });
+      toast.success("Maklumat pengguna disimpan."); onDone(saved);
+    } catch { toast.error("Maklumat gagal disimpan. Sila semak medan wajib dan cuba lagi."); }
+    finally { setBusy(false); }
   };
   return (
     <form onSubmit={submit} className="mx-auto max-w-sm space-y-4 rounded-xl border bg-card p-6 shadow-sm">
       <div className="rounded-md bg-primary p-4"><UitmLogo /></div>
       <h2 className="text-lg font-bold">Lengkapkan Maklumat Pelapor</h2>
       <p className="text-xs text-muted-foreground">{session.user.email}</p>
-      <div className="space-y-1.5"><Label>Nama penuh *</Label><Input value={name} onChange={(e) => setName(e.target.value)} required /></div>
-      <div className="space-y-1.5"><Label>ID Staf / Unit / Kontraktor *</Label><Input value={sid} onChange={(e) => setSid(e.target.value)} placeholder="cth. 123456 / BPF / Syarikat ABC" required /></div>
+      <ReporterProfileFields value={value} onChange={setValue} />
       <Button type="submit" className="w-full" disabled={busy}>{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Simpan & Teruskan</Button>
     </form>
   );
@@ -182,19 +184,19 @@ function StaffHistory({ userId }: { userId: string }) {
   );
 }
 
-function StaffForm({ session }: { session: Session }) {
+function StaffForm({ session, profile }: { session: Session; profile: ReporterProfile }) {
   const [capturedAt, setCapturedAt] = useState<Date | null>(null);
   const [geo, setGeo] = useState<Geo>(null);
   const [geoErr, setGeoErr] = useState<string | null>(null);
-  const [name, setName] = useState("");
-  const [staffId, setStaffId] = useState("");
+  const name = profile.staff_name;
+  const staffId = profile.user_type === "contractor" ? profile.company_name : profile.staff_id;
   const [category, setCategory] = useState("");
   const [status, setStatus] = useState("");
   const [zone, setZone] = useState("");
   const [building, setBuilding] = useState("");
   const [notes, setNotes] = useState("");
-  const [scopeId, setScopeId] = useState("");
-  const [company, setCompany] = useState("");
+  const [scopeId, setScopeId] = useState(profile.main_scope_id ?? "");
+  const [company, setCompany] = useState(profile.company_name);
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -214,8 +216,6 @@ function StaffForm({ session }: { session: Session }) {
 
   useEffect(() => {
     capture();
-    setName(localStorage.getItem("staff_name") ?? "");
-    setStaffId(localStorage.getItem("staff_id") ?? "");
   }, []);
 
   const pins = useMemo(() => (geo ? [{ id: "me", lat: geo.lat, lng: geo.lng, accuracy: geo.acc }] : []), [geo]);
@@ -227,7 +227,7 @@ function StaffForm({ session }: { session: Session }) {
   };
 
   const reset = () => {
-    setCategory(""); setStatus(""); setZone(""); setBuilding(""); setNotes(""); setScopeId(""); setCompany(""); onPhoto(null); setDone(false); capture();
+    setCategory(""); setStatus(""); setZone(""); setBuilding(""); setNotes(""); setScopeId(profile.main_scope_id ?? ""); setCompany(profile.company_name); onPhoto(null); setDone(false); capture();
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -236,8 +236,6 @@ function StaffForm({ session }: { session: Session }) {
     if (!name.trim() || !staffId.trim() || !category || !status || !zone || !building) { toast.error("Sila lengkapkan semua medan wajib."); return; }
     setBusy(true);
     try {
-      localStorage.setItem("staff_name", name.trim());
-      localStorage.setItem("staff_id", staffId.trim());
       let path: string | null = null;
       if (photo) {
         const ext = photo.name.split(".").pop()?.toLowerCase() || "jpg";
@@ -253,6 +251,7 @@ function StaffForm({ session }: { session: Session }) {
         gps_accuracy: geo.acc,
         staff_name: name.trim(),
         staff_id: staffId.trim(),
+        reporter_type: profile.user_type,
         category, status, zone, building,
         notes: notes.trim() || null,
         photo_path: path,
@@ -310,11 +309,13 @@ function StaffForm({ session }: { session: Session }) {
 
             <section className="space-y-4 rounded-xl border bg-card p-4 shadow-sm">
               <h2 className="font-semibold">Maklumat Pelapor</h2>
+              <Badge variant="outline">{reporterLabel(profile.user_type)}</Badge>
               <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1.5"><Label>Nama *</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama penuh" /></div>
-                <div className="space-y-1.5"><Label>ID Staf / Unit / Kontraktor *</Label><Input value={staffId} onChange={(e) => setStaffId(e.target.value)} placeholder="cth. 123456 / BPF" /></div>
+                <LockedField label={profile.user_type === "contractor" ? "Nama wakil / pekerja" : "Nama penuh"} value={name} />
+                <LockedField label={profile.user_type === "contractor" ? "Syarikat kontraktor" : "No. Staf UiTM"} value={staffId} />
+                {profile.user_type === "staff" && <LockedField label="Unit / Bahagian" value={profile.department} />}
+                {profile.user_type === "contractor" && profile.phone && <LockedField label="No. Telefon / Rujukan" value={profile.phone} />}
               </div>
-              <p className="text-xs text-muted-foreground">Disimpan dalam peranti ini untuk kegunaan seterusnya.</p>
             </section>
 
             <section className="space-y-4 rounded-xl border bg-card p-4 shadow-sm">

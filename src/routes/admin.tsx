@@ -29,6 +29,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ClientMap } from "@/components/ClientMap";
 import { ADMIN_STATUSES, CATEGORIES, HIGH_PRIORITY, ZONES, toCsv, type Report } from "@/lib/locations";
+import { reporterLabel, type ReporterProfile } from "@/lib/profile-rules";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -127,6 +128,8 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
   const [rows, setRows] = useState<Report[]>([]);
   const [scopes, setScopes] = useState<ContractorScope[]>([]);
   const [scopeFilter, setScopeFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [profiles, setProfiles] = useState<ReporterProfile[]>([]);
   const [photos, setPhotos] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [from, setFrom] = useState("");
@@ -142,13 +145,16 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
   const [deleteIds, setDeleteIds] = useState<string[]>([]);
   const [deleting, setDeleting] = useState(false);
   const deleteFn = useServerFn(deleteAdminReports);
-  useEffect(() => { setCheckedIds([]); }, [from, to, zone, cat, query, scopeFilter]);
+  useEffect(() => { setCheckedIds([]); }, [from, to, zone, cat, query, scopeFilter, typeFilter]);
 
   const load = useCallback(async () => {
     setLoading(true);
     const { data: scopeList, error: scopeError } = await supabase.from("contractor_scopes").select("id, name").order("name");
     if (scopeError) toast.error("Senarai skop gagal dimuatkan.");
     setScopes(scopeList ?? []);
+    const profileResult = await supabase.from("profiles").select("*");
+    if (profileResult.error) toast.error("Maklumat pengguna gagal dimuatkan.");
+    setProfiles(profileResult.data ?? []);
     const { data, error } = await supabase.from("reports").select("*").order("captured_at", { ascending: false });
     if (error) toast.error(error.message);
     const list = (data ?? []) as Report[];
@@ -171,10 +177,11 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
     if (to && local > to) return false;
     if (zone !== "all" && r.zone !== zone) return false;
     if (cat !== "all" && r.category !== cat) return false;
+    if (typeFilter !== "all" && (r.reporter_type ?? "legacy") !== typeFilter) return false;
     if (scopeFilter === "unassigned" && r.contractor_scope_id) return false;
     if (scopeFilter !== "all" && scopeFilter !== "unassigned" && r.contractor_scope_id !== scopeFilter) return false;
     return !!d;
-  }), sort, query), [rows, from, to, zone, cat, sort, query, scopeFilter]);
+  }), sort, query), [rows, from, to, zone, cat, sort, query, scopeFilter, typeFilter]);
 
   const checkedVisible = visibleSelectedIds(checkedIds, filtered);
   const allChecked = filtered.length > 0 && checkedVisible.length === filtered.length;
@@ -252,10 +259,11 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5"><Label htmlFor="staff-search">Cari nama / ID staf</Label><Input id="staff-search" placeholder="Nama atau ID staf" value={query} onChange={(e) => setQuery(e.target.value)} /></div>
+          <div className="space-y-1.5"><Label htmlFor="staff-search">Cari nama / No. Staf / syarikat</Label><Input id="staff-search" placeholder="Nama, No. Staf atau syarikat" value={query} onChange={(e) => setQuery(e.target.value)} /></div>
           <div className="space-y-1.5"><Label>Susunan laporan</Label><Select value={sort} onValueChange={(v) => { if (v === "date-desc" || v === "date-asc" || v === "name-asc" || v === "name-desc") setSort(v); }}><SelectTrigger aria-label="Susunan laporan" className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="date-desc">Tarikh: Terkini dahulu</SelectItem><SelectItem value="date-asc">Tarikh: Terlama dahulu</SelectItem><SelectItem value="name-asc">Nama staf: A–Z</SelectItem><SelectItem value="name-desc">Nama staf: Z–A</SelectItem></SelectContent></Select></div>
         </div>
         <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="w-full space-y-1.5 sm:w-56"><Label>Jenis pelapor</Label><Select value={typeFilter} onValueChange={setTypeFilter}><SelectTrigger aria-label="Tapis jenis pelapor" className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Semua pelapor</SelectItem><SelectItem value="staff">Staf UiTM</SelectItem><SelectItem value="contractor">Kontraktor</SelectItem><SelectItem value="legacy">Rekod lama</SelectItem></SelectContent></Select></div>
           <div className="w-full space-y-1.5 sm:w-80"><Label>Skop kontraktor</Label><Select value={scopeFilter} onValueChange={setScopeFilter}><SelectTrigger aria-label="Tapis skop kontraktor" className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Semua skop</SelectItem><SelectItem value="unassigned">Belum diagihkan</SelectItem>{scopes.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select></div>
           <ExecutiveExport rows={filtered} scopes={scopes} from={from} to={to} filters={[zone === "all" ? "Semua zon" : zone, cat === "all" ? "Semua kategori" : cat, scopeFilter === "all" ? "Semua skop" : scopes.find((s) => s.id === scopeFilter)?.name ?? "Belum diagihkan", query ? `Staf: ${query}` : ""].filter(Boolean).join(" · ")} />
         </div>
@@ -263,7 +271,7 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
           <TabsList className="h-auto flex-wrap">
             <TabsTrigger value="table"><Table2 className="mr-1 h-4 w-4" />Jadual</TabsTrigger>
             <TabsTrigger value="map"><MapPin className="mr-1 h-4 w-4" />Peta</TabsTrigger>
-            <TabsTrigger value="staff"><Users className="mr-1 h-4 w-4" />Senarai Staf</TabsTrigger>
+            <TabsTrigger value="staff"><Users className="mr-1 h-4 w-4" />Senarai Pengguna</TabsTrigger>
             <TabsTrigger value="scopes"><Users className="mr-1 h-4 w-4" />Skop Kontraktor</TabsTrigger>
           </TabsList>
           <TabsContent value="table">
@@ -286,7 +294,7 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
                       <tr key={r.id} className="border-t align-top hover:bg-muted/50">
                         <td className="px-3 py-3"><Checkbox aria-label={`Pilih laporan ${r.staff_name} ${r.id}`} checked={checkedVisible.includes(r.id)} disabled={deleting} onCheckedChange={(checked) => setCheckedIds((ids) => checked === true ? [...new Set([...ids, r.id])] : ids.filter((id) => id !== r.id))} /></td>
                         <td className="whitespace-nowrap px-3 py-2">{new Date(r.captured_at).toLocaleString("ms-MY")}</td>
-                        <td className="px-3 py-2"><div className="font-medium">{r.staff_name}</div><div className="text-xs text-muted-foreground">{r.staff_id}</div></td>
+                        <td className="px-3 py-2"><div className="font-medium">{r.staff_name}</div><Badge variant={r.reporter_type === "contractor" ? "secondary" : "outline"}>{r.reporter_type ? reporterLabel(r.reporter_type) : "Rekod lama"}</Badge><div className="text-xs text-muted-foreground">{r.staff_id}</div>{r.reporter_type === "staff" && <div className="text-xs text-muted-foreground">{profiles.find((p) => p.id === r.user_id)?.department}</div>}</td>
                         <td className="px-3 py-2">{r.category}<div className="mt-1 text-xs text-primary">{scopes.find((s) => s.id === r.contractor_scope_id)?.name ?? "Belum diagihkan"}</div>{r.contractor_company && <div className="text-xs text-muted-foreground">{r.contractor_company}</div>}</td>
                         <td className="px-3 py-2">{r.zone}</td>
                         <td className="px-3 py-2">{r.building}</td>
@@ -302,7 +310,7 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
             </div>
           </TabsContent>
           <TabsContent value="staff">
-            <StaffManager reports={rows} selfId={selfId} />
+            <StaffManager reports={rows} selfId={selfId} onSaved={load} />
           </TabsContent>
           <TabsContent value="scopes"><ContractorScopes scopes={scopes} onSaved={load} /></TabsContent>
           <TabsContent value="map">
@@ -403,7 +411,8 @@ function ReportDialog({ report, scopes, photo, onClose, onSaved }: { report: Rep
           <div className="space-y-3 text-sm">
             {photo ? <img src={photo} alt="Bukti" className="max-h-60 w-full rounded-md object-cover" /> : <Badge variant="outline">{report.photo_path ? "Foto belum tersedia" : "Tiada foto"}</Badge>}
             <div className="grid grid-cols-2 gap-2">
-              <Info k="Staf" v={`${report.staff_name} (${report.staff_id})`} />
+              <Info k="Pelapor" v={`${report.staff_name} (${report.staff_id})`} />
+              <Info k="Jenis pelapor" v={report.reporter_type ? reporterLabel(report.reporter_type) : "Rekod lama"} />
               <Info k="Masa" v={new Date(report.captured_at).toLocaleString("ms-MY")} />
               <Info k="Kategori" v={report.category} />
               <Info k="Lokasi" v={`${report.zone} · ${report.building}`} />
@@ -415,8 +424,8 @@ function ReportDialog({ report, scopes, photo, onClose, onSaved }: { report: Rep
             <div className="space-y-3 rounded-md border p-3">
               <p className="text-xs font-semibold uppercase text-muted-foreground">Edit maklumat laporan</p>
               <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1.5"><Label>Nama staf</Label><Input value={f.staff_name} onChange={(e) => setF({ ...f, staff_name: e.target.value })} /></div>
-                <div className="space-y-1.5"><Label>ID Staf / Unit</Label><Input value={f.staff_id} onChange={(e) => setF({ ...f, staff_id: e.target.value })} /></div>
+                <div className="space-y-1.5"><Label>Nama pelapor</Label><Input value={f.staff_name} onChange={(e) => setF({ ...f, staff_name: e.target.value })} /></div>
+                <div className="space-y-1.5"><Label>{report.reporter_type === "contractor" ? "Syarikat kontraktor" : "No. Staf / Pengenalan"}</Label><Input value={f.staff_id} onChange={(e) => setF({ ...f, staff_id: e.target.value })} /></div>
               </div>
               <div className="space-y-1.5"><Label>Kategori</Label>
                 <Select value={f.category} onValueChange={(v) => setF({ ...f, category: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
