@@ -1,12 +1,22 @@
 import type { Report } from "./locations";
 import logo from "@/assets/uitm-logo-only.png.asset.json";
 
-async function loadImage(url: string) {
+export async function loadImage(url: string) {
   const image = new Image();
   image.crossOrigin = "anonymous";
   image.src = url;
   await image.decode();
   return image;
+}
+
+export function pdfThemeColor(name: string): [number, number, number] {
+  const canvas = document.createElement("canvas"); canvas.width = canvas.height = 1;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Penjana PDF tidak tersedia pada peranti ini.");
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  ctx.fillRect(0, 0, 1, 1);
+  const p = ctx.getImageData(0, 0, 1, 1).data;
+  return [p[0] ?? 0, p[1] ?? 0, p[2] ?? 0];
 }
 
 export async function generateReportPdf(report: Report, photo?: string) {
@@ -55,6 +65,7 @@ export async function generateReportPdf(report: Report, photo?: string) {
   doc.textWithLink("Lihat lokasi di Google Maps", 16, y, { url: `https://www.google.com/maps?q=${report.latitude},${report.longitude}` }); y += 10;
   field("Catatan Staf", report.notes || "-");
   field("Catatan / Log Tindakan Admin", report.admin_notes || "-");
+  if (report.contractor_company) field("Syarikat / Unit Bertanggungjawab", report.contractor_company);
   if (report.photo_path) {
     if (!photo) throw new Error("Foto belum tersedia. Sila buka semula laporan dan cuba lagi.");
     const image = await loadImage(photo);

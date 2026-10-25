@@ -2,6 +2,10 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { deleteAdminReports } from "@/lib/admin-reports.functions";
+import { editAdminReport } from "@/lib/contractors.functions";
+import { changedFields, type ContractorScope } from "@/lib/contractor-rules";
+import { ContractorScopes } from "@/components/ContractorScopes";
+import { ExecutiveExport } from "@/components/ExecutiveExport";
 import { visibleSelectedIds } from "@/lib/admin-report-rules";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
@@ -121,6 +125,8 @@ const statusVariant = (s: string) =>
 
 function Dashboard({ email, selfId }: { email: string; selfId: string }) {
   const [rows, setRows] = useState<Report[]>([]);
+  const [scopes, setScopes] = useState<ContractorScope[]>([]);
+  const [scopeFilter, setScopeFilter] = useState("all");
   const [photos, setPhotos] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [from, setFrom] = useState("");
@@ -136,10 +142,13 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
   const [deleteIds, setDeleteIds] = useState<string[]>([]);
   const [deleting, setDeleting] = useState(false);
   const deleteFn = useServerFn(deleteAdminReports);
-  useEffect(() => { setCheckedIds([]); }, [from, to, zone, cat, query]);
+  useEffect(() => { setCheckedIds([]); }, [from, to, zone, cat, query, scopeFilter]);
 
   const load = useCallback(async () => {
     setLoading(true);
+    const { data: scopeList, error: scopeError } = await supabase.from("contractor_scopes").select("id, name").order("name");
+    if (scopeError) toast.error("Senarai skop gagal dimuatkan.");
+    setScopes(scopeList ?? []);
     const { data, error } = await supabase.from("reports").select("*").order("captured_at", { ascending: false });
     if (error) toast.error(error.message);
     const list = (data ?? []) as Report[];
@@ -162,8 +171,10 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
     if (to && local > to) return false;
     if (zone !== "all" && r.zone !== zone) return false;
     if (cat !== "all" && r.category !== cat) return false;
+    if (scopeFilter === "unassigned" && r.contractor_scope_id) return false;
+    if (scopeFilter !== "all" && scopeFilter !== "unassigned" && r.contractor_scope_id !== scopeFilter) return false;
     return !!d;
-  }), sort, query), [rows, from, to, zone, cat, sort, query]);
+  }), sort, query), [rows, from, to, zone, cat, sort, query, scopeFilter]);
 
   const checkedVisible = visibleSelectedIds(checkedIds, filtered);
   const allChecked = filtered.length > 0 && checkedVisible.length === filtered.length;
@@ -244,11 +255,16 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
           <div className="space-y-1.5"><Label htmlFor="staff-search">Cari nama / ID staf</Label><Input id="staff-search" placeholder="Nama atau ID staf" value={query} onChange={(e) => setQuery(e.target.value)} /></div>
           <div className="space-y-1.5"><Label>Susunan laporan</Label><Select value={sort} onValueChange={(v) => { if (v === "date-desc" || v === "date-asc" || v === "name-asc" || v === "name-desc") setSort(v); }}><SelectTrigger aria-label="Susunan laporan" className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="date-desc">Tarikh: Terkini dahulu</SelectItem><SelectItem value="date-asc">Tarikh: Terlama dahulu</SelectItem><SelectItem value="name-asc">Nama staf: A–Z</SelectItem><SelectItem value="name-desc">Nama staf: Z–A</SelectItem></SelectContent></Select></div>
         </div>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="w-full space-y-1.5 sm:w-80"><Label>Skop kontraktor</Label><Select value={scopeFilter} onValueChange={setScopeFilter}><SelectTrigger aria-label="Tapis skop kontraktor" className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Semua skop</SelectItem><SelectItem value="unassigned">Belum diagihkan</SelectItem>{scopes.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select></div>
+          <ExecutiveExport rows={filtered} scopes={scopes} from={from} to={to} filters={[zone === "all" ? "Semua zon" : zone, cat === "all" ? "Semua kategori" : cat, scopeFilter === "all" ? "Semua skop" : scopes.find((s) => s.id === scopeFilter)?.name ?? "Belum diagihkan", query ? `Staf: ${query}` : ""].filter(Boolean).join(" · ")} />
+        </div>
         <Tabs defaultValue="table">
-          <TabsList>
+          <TabsList className="h-auto flex-wrap">
             <TabsTrigger value="table"><Table2 className="mr-1 h-4 w-4" />Jadual</TabsTrigger>
             <TabsTrigger value="map"><MapPin className="mr-1 h-4 w-4" />Peta</TabsTrigger>
             <TabsTrigger value="staff"><Users className="mr-1 h-4 w-4" />Senarai Staf</TabsTrigger>
+            <TabsTrigger value="scopes"><Users className="mr-1 h-4 w-4" />Skop Kontraktor</TabsTrigger>
           </TabsList>
           <TabsContent value="table">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -271,7 +287,7 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
                         <td className="px-3 py-3"><Checkbox aria-label={`Pilih laporan ${r.staff_name} ${r.id}`} checked={checkedVisible.includes(r.id)} disabled={deleting} onCheckedChange={(checked) => setCheckedIds((ids) => checked === true ? [...new Set([...ids, r.id])] : ids.filter((id) => id !== r.id))} /></td>
                         <td className="whitespace-nowrap px-3 py-2">{new Date(r.captured_at).toLocaleString("ms-MY")}</td>
                         <td className="px-3 py-2"><div className="font-medium">{r.staff_name}</div><div className="text-xs text-muted-foreground">{r.staff_id}</div></td>
-                        <td className="px-3 py-2">{r.category}</td>
+                        <td className="px-3 py-2">{r.category}<div className="mt-1 text-xs text-primary">{scopes.find((s) => s.id === r.contractor_scope_id)?.name ?? "Belum diagihkan"}</div>{r.contractor_company && <div className="text-xs text-muted-foreground">{r.contractor_company}</div>}</td>
                         <td className="px-3 py-2">{r.zone}</td>
                         <td className="px-3 py-2">{r.building}</td>
                         <td className="px-3 py-2"><Badge className={statusVariant(r.status)}>{r.status}</Badge></td>
@@ -288,6 +304,7 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
           <TabsContent value="staff">
             <StaffManager reports={rows} selfId={selfId} />
           </TabsContent>
+          <TabsContent value="scopes"><ContractorScopes scopes={scopes} onSaved={load} /></TabsContent>
           <TabsContent value="map">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-sm font-semibold">Status pada peta</h2>
@@ -315,7 +332,7 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
         </Tabs>
       </main>
 
-      <ReportDialog report={selected} photo={selected ? photos[selected.photo_path ?? ""] : undefined} onClose={() => setSelected(null)} onSaved={load} />
+      <ReportDialog report={selected} scopes={scopes} photo={selected ? photos[selected.photo_path ?? ""] : undefined} onClose={() => setSelected(null)} onSaved={load} />
       <Dialog open={deleteIds.length > 0} onOpenChange={(open) => { if (!open && !deleting) setDeleteIds([]); }}>
         <DialogContent onEscapeKeyDown={(event) => { if (deleting) event.preventDefault(); }} onPointerDownOutside={(event) => { if (deleting) event.preventDefault(); }}>
           <DialogHeader><DialogTitle>Padam {deleteIds.length} laporan terpilih?</DialogTitle></DialogHeader>
@@ -346,24 +363,26 @@ function FilterSel({ label, value, onChange, items }: { label: string; value: st
   );
 }
 
-function ReportDialog({ report, photo, onClose, onSaved }: { report: Report | null; photo?: string | undefined; onClose: () => void; onSaved: () => void }) {
+function ReportDialog({ report, scopes, photo, onClose, onSaved }: { report: Report | null; scopes: ContractorScope[]; photo?: string | undefined; onClose: () => void; onSaved: () => void }) {
   const [status, setStatus] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [scopeId, setScopeId] = useState("unassigned");
+  const [company, setCompany] = useState("");
+  const saveFn = useServerFn(editAdminReport);
   const [f, setF] = useState({ staff_name: "", staff_id: "", category: "", zone: "", building: "", notes: "" });
-  useEffect(() => { if (report) { setStatus(report.status); setNote(""); setF({ staff_name: report.staff_name, staff_id: report.staff_id, category: report.category, zone: report.zone, building: report.building, notes: report.notes ?? "" }); } }, [report]);
+  useEffect(() => { if (report) { setStatus(report.status); setNote(""); setScopeId(report.contractor_scope_id ?? "unassigned"); setCompany(report.contractor_company ?? ""); setF({ staff_name: report.staff_name, staff_id: report.staff_id, category: report.category, zone: report.zone, building: report.building, notes: report.notes ?? "" }); } }, [report]);
   const save = async () => {
     if (!report) return;
     if (!f.staff_name.trim() || !f.staff_id.trim() || !f.building) { toast.error("Nama, ID staf dan bangunan wajib diisi."); return; }
     setBusy(true);
-    const stamp = `[${new Date().toLocaleString("ms-MY")}] ${report.status} → ${status}${note.trim() ? `: ${note.trim()}` : ""}`;
-    const admin_notes = (report.admin_notes ? report.admin_notes + "\n" : "") + stamp;
-    const { error } = await supabase.from("reports").update({ status, admin_notes, staff_name: f.staff_name.trim(), staff_id: f.staff_id.trim(), category: f.category, zone: f.zone, building: f.building, notes: f.notes.trim(), updated_at: new Date().toISOString() }).eq("id", report.id);
-    setBusy(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Status dikemas kini.");
-    onSaved();
-    onClose();
+    const original = { staff_name: report.staff_name, staff_id: report.staff_id, category: report.category, zone: report.zone, building: report.building, notes: report.notes ?? "", status: report.status, contractor_scope_id: report.contractor_scope_id ?? null, contractor_company: report.contractor_company ?? null };
+    const edited = { ...f, staff_name: f.staff_name.trim(), staff_id: f.staff_id.trim(), status, contractor_scope_id: scopeId === "unassigned" ? null : scopeId, contractor_company: company.trim() || null };
+    try {
+      await saveFn({ data: { id: report.id, changes: changedFields(original, edited), note } });
+      toast.success("Laporan dikemas kini."); onSaved(); onClose();
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Laporan gagal disimpan."); }
+    finally { setBusy(false); }
   };
   const remove = async () => {
     if (!report || !window.confirm("Padam laporan ini secara kekal? Tindakan ini tidak boleh dibatalkan.")) return;
@@ -409,6 +428,8 @@ function ReportDialog({ report, photo, onClose, onSaved }: { report: Report | nu
               </div>
               <div className="space-y-1.5"><Label>Catatan staf</Label><Textarea rows={3} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></div>
             </div>
+            <div className="space-y-1.5"><Label>Skop tugasan</Label><Select value={scopeId} onValueChange={setScopeId}><SelectTrigger className="w-full" aria-label="Skop tugasan"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="unassigned">Belum diagihkan</SelectItem>{scopes.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select></div>
+            <div className="space-y-1.5"><Label htmlFor="contractor-company">Syarikat / Unit Bertanggungjawab (pilihan)</Label><Input id="contractor-company" maxLength={200} value={company} onChange={(e) => setCompany(e.target.value)} /></div>
             <div className="space-y-1.5">
               <Label>Status baharu</Label>
               <Select value={status} onValueChange={setStatus}>

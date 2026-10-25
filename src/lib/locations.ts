@@ -59,6 +59,8 @@ export type Report = {
   notes: string | null;
   photo_path: string | null;
   admin_notes: string | null;
+  contractor_scope_id?: string | null;
+  contractor_company?: string | null;
 };
 
 export function toCsv(rows: Report[]): string {
