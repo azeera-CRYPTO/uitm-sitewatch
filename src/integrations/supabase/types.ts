@@ -34,27 +34,50 @@ export type Database = {
       }
       profiles: {
         Row: {
+          company_name: string
           created_at: string
+          department: string
           email: string | null
           id: string
+          main_scope_id: string | null
+          phone: string
           staff_id: string
           staff_name: string
+          user_type: string | null
         }
         Insert: {
+          company_name?: string
           created_at?: string
+          department?: string
           email?: string | null
           id: string
+          main_scope_id?: string | null
+          phone?: string
           staff_id?: string
           staff_name?: string
+          user_type?: string | null
         }
         Update: {
+          company_name?: string
           created_at?: string
+          department?: string
           email?: string | null
           id?: string
+          main_scope_id?: string | null
+          phone?: string
           staff_id?: string
           staff_name?: string
+          user_type?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_main_scope_id_fkey"
+            columns: ["main_scope_id"]
+            isOneToOne: false
+            referencedRelation: "contractor_scopes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reports: {
         Row: {
@@ -71,6 +94,7 @@ export type Database = {
           longitude: number
           notes: string | null
           photo_path: string | null
+          reporter_type: string | null
           staff_id: string
           staff_name: string
           status: string
@@ -92,6 +116,7 @@ export type Database = {
           longitude: number
           notes?: string | null
           photo_path?: string | null
+          reporter_type?: string | null
           staff_id: string
           staff_name: string
           status: string
@@ -113,6 +138,7 @@ export type Database = {
           longitude?: number
           notes?: string | null
           photo_path?: string | null
+          reporter_type?: string | null
           staff_id?: string
           staff_name?: string
           status?: string
