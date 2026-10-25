@@ -21,8 +21,9 @@ export async function generateExecutivePdf(rows: Report[], scopes: ContractorSco
   const space = (height: number) => { if (y + height > 270) { doc.addPage(); header(); y = 46; } };
   const text = (value: string, bold = false, size = 10) => {
     doc.setFont("helvetica", bold ? "bold" : "normal"); doc.setFontSize(size); doc.setTextColor(...(bold ? primary : ink));
-    const lines: string[] = doc.splitTextToSize(value || "-", 178);
-    for (const line of lines) { space(5); doc.text(line, 16, y); y += 5; } y += 2;
+    const printable = (value || "-").replace(/→/g, "->").replace(/[–—]/g, "-").replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
+    const lines: string[] = doc.splitTextToSize(printable, 178);
+    for (const line of lines) { space(4.5); doc.text(line, 16, y); y += 4.5; } y += 1.5;
   };
   const heading = (value: string) => { space(18); y += 4; text(value, true, 11); };
   text("RINGKASAN EKSEKUTIF LAPORAN TAPAK", true, 14);
@@ -50,13 +51,16 @@ export async function generateExecutivePdf(rows: Report[], scopes: ContractorSco
   heading("5. Senarai Tugasan Belum Selesai");
   if (!summary.unresolved.length) text("Tiada tugasan tertunggak.");
   summary.unresolved.forEach((r, i) => { space(17); text(`${i + 1}. ${r.zone} - ${r.building} | ${r.status}`); text(`Syarikat / Unit: ${r.contractor_company || "Belum ditetapkan"}`); });
-  space(45); y += 12; doc.setDrawColor(...ink); doc.setLineWidth(0.2); doc.line(16, y, 92, y); doc.line(116, y, 194, y); y += 6;
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+  const preparedLines = doc.splitTextToSize(options.prepared || "Nama: ____________________", 76);
+  const approvedLines = doc.splitTextToSize(options.approved || "Nama: ____________________", 78);
+  const nameHeight = Math.max(preparedLines.length, approvedLines.length) * 4;
+  space(35 + nameHeight); y += 12; doc.setDrawColor(...ink); doc.setLineWidth(0.2); doc.line(16, y, 92, y); doc.line(116, y, 194, y); y += 6;
   doc.setTextColor(...primary); doc.setFont("helvetica", "bold"); doc.setFontSize(10);
   doc.text("Disediakan oleh", 16, y); doc.text("Disahkan oleh", 116, y); y += 6;
   doc.setTextColor(...ink); doc.setFont("helvetica", "normal"); doc.setFontSize(9);
-  doc.text(doc.splitTextToSize(options.prepared || "Nama: ____________________", 76), 16, y);
-  doc.text(doc.splitTextToSize(options.approved || "Nama: ____________________", 78), 116, y);
-  y += 17; doc.text("Tarikh: ___________________", 16, y); doc.text("Tarikh: ___________________", 116, y);
+  doc.text(preparedLines, 16, y); doc.text(approvedLines, 116, y);
+  y += nameHeight + 10; doc.text("Tarikh: ___________________", 16, y); doc.text("Tarikh: ___________________", 116, y);
   const pages = doc.getNumberOfPages();
   for (let i = 1; i <= pages; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(...ink); doc.text("BPF UiTM Cawangan Kelantan | Ringkasan Eksekutif", 16, 287); doc.text(`${i} / ${pages}`, 194, 287, { align: "right" }); }
   return new File([doc.output("blob")], `ringkasan-eksekutif-${options.from || "semua"}-${options.to || "tarikh"}.pdf`, { type: "application/pdf" });
