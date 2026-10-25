@@ -10,7 +10,7 @@ import { optionNames, reportStatusGroup, reportStatusBadge } from "@/lib/report-
 import { ReportOptionManager } from "@/components/ReportOptionManager";
 import { ContractorScopes } from "@/components/ContractorScopes";
 import { ExecutiveExport } from "@/components/ExecutiveExport";
-import { visibleSelectedIds } from "@/lib/admin-report-rules";
+import { kpiSummary, visibleSelectedIds } from "@/lib/admin-report-rules";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import type { Session } from "@supabase/supabase-js";
@@ -219,12 +219,7 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
     a.click();
   };
 
-  const counts = {
-    total: filtered.length,
-    high: filtered.filter((r) => reportStatusGroup(r.status, options) === "urgent").length,
-    action: filtered.filter((r) => reportStatusGroup(r.status, options) === "progress").length,
-    done: filtered.filter((r) => reportStatusGroup(r.status, options) === "done").length,
-  };
+  const counts = kpiSummary(filtered, options);
 
   return (
     <div className="min-h-screen bg-muted/40">
@@ -249,9 +244,9 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
       <main className="mx-auto max-w-7xl space-y-5 px-4 py-6">
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <Stat label="Jumlah Laporan" v={counts.total} />
-          <Stat label="Perlu Tindakan Lanjut" v={counts.high} accent="text-destructive" />
-          <Stat label="Dalam Proses / Tindakan" v={counts.action} accent="text-primary" />
-          <Stat label="Selesai" v={counts.done} accent="text-success" />
+          <Stat label="Perlu Tindakan Lanjut" v={counts.urgent} accent="text-destructive" />
+          <Stat label="Dalam Proses / Tindakan" v={counts.progress} accent="text-primary" />
+          <Stat label="Kadar Selesai" v={`${counts.doneRate}%`} accent="text-success" />
         </div>
 
         <div className="grid gap-3 rounded-xl border bg-card p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-5">
@@ -363,7 +358,7 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
   );
 }
 
-function Stat({ label, v, accent }: { label: string; v: number; accent?: string }) {
+function Stat({ label, v, accent }: { label: string; v: number | string; accent?: string }) {
   return <div className="rounded-xl border bg-card p-4 shadow-sm"><p className="text-xs text-muted-foreground">{label}</p><p className={`text-2xl font-bold ${accent ?? ""}`}>{v}</p></div>;
 }
 
