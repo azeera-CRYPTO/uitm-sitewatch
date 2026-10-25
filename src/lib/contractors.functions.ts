@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { reportAdminEditSchema, scopeSchema } from "./contractor-rules";
+import type { Database } from "@/integrations/supabase/types";
 
 export const saveContractorScope = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => scopeSchema.parse(input)).handler(async ({ data, context }) => {
@@ -27,7 +28,8 @@ export const editAdminReport = createServerFn({ method: "POST" }).middleware([re
     const { data: original, error: readError } = await context.supabase.from("reports").select("*").eq("id", data.id).single();
     if (readError || !original) throw new Error("Laporan tidak ditemui.");
     const stamp = `[${new Date().toLocaleString("ms-MY", { timeZone: "Asia/Kuala_Lumpur" })}] ${original.status} → ${data.changes.status ?? original.status}${data.note ? `: ${data.note}` : ": Maklumat laporan dikemas kini"}`;
-    const { data: saved, error } = await context.supabase.from("reports").update({ ...data.changes, admin_notes: [original.admin_notes, stamp].filter(Boolean).join("\n"), updated_at: new Date().toISOString() })
+    const changes = Object.fromEntries(Object.entries(data.changes).filter(([, value]) => value !== undefined)) as Database["public"]["Tables"]["reports"]["Update"];
+    const { data: saved, error } = await context.supabase.from("reports").update({ ...changes, admin_notes: [original.admin_notes, stamp].filter(Boolean).join("\n"), updated_at: new Date().toISOString() })
       .eq("id", data.id).eq("updated_at", original.updated_at).select().maybeSingle();
     if (error || !saved) throw new Error("Laporan telah berubah atau gagal disimpan. Buka semula dan cuba lagi.");
     return saved;
