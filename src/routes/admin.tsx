@@ -260,7 +260,7 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5"><Label htmlFor="staff-search">Cari nama / No. Staf / syarikat</Label><Input id="staff-search" placeholder="Nama, No. Staf atau syarikat" value={query} onChange={(e) => setQuery(e.target.value)} /></div>
-          <div className="space-y-1.5"><Label>Susunan laporan</Label><Select value={sort} onValueChange={(v) => { if (v === "date-desc" || v === "date-asc" || v === "name-asc" || v === "name-desc") setSort(v); }}><SelectTrigger aria-label="Susunan laporan" className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="date-desc">Tarikh: Terkini dahulu</SelectItem><SelectItem value="date-asc">Tarikh: Terlama dahulu</SelectItem><SelectItem value="name-asc">Nama staf: A–Z</SelectItem><SelectItem value="name-desc">Nama staf: Z–A</SelectItem></SelectContent></Select></div>
+          <div className="space-y-1.5"><Label>Susunan laporan</Label><Select value={sort} onValueChange={(v) => { if (v === "date-desc" || v === "date-asc" || v === "name-asc" || v === "name-desc") setSort(v); }}><SelectTrigger aria-label="Susunan laporan" className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="date-desc">Tarikh: Terkini dahulu</SelectItem><SelectItem value="date-asc">Tarikh: Terlama dahulu</SelectItem><SelectItem value="name-asc">Nama pelapor: A–Z</SelectItem><SelectItem value="name-desc">Nama pelapor: Z–A</SelectItem></SelectContent></Select></div>
         </div>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="w-full space-y-1.5 sm:w-56"><Label>Jenis pelapor</Label><Select value={typeFilter} onValueChange={setTypeFilter}><SelectTrigger aria-label="Tapis jenis pelapor" className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Semua pelapor</SelectItem><SelectItem value="staff">Staf UiTM</SelectItem><SelectItem value="contractor">Kontraktor</SelectItem><SelectItem value="legacy">Rekod lama</SelectItem></SelectContent></Select></div>
@@ -285,7 +285,7 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
             <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
               <table className="w-full min-w-[1100px] text-sm">
                 <thead className="bg-primary/5 text-left text-xs uppercase tracking-wide text-muted-foreground">
-                  <tr><th className="w-12 px-3 py-3"><Checkbox aria-label="Pilih semua laporan dipaparkan" checked={allChecked ? true : checkedVisible.length ? "indeterminate" : false} disabled={!filtered.length || loading || deleting} onCheckedChange={(checked) => setCheckedIds(checked === true ? filtered.map((row) => row.id) : [])} /></th>{["Masa", "Staf", "Kategori", "Zon", "Bangunan", "Status", "Catatan", "Foto", "GPS", ""].map((h) => <th key={h} className="px-3 py-3" aria-sort={h === "Masa" && sort.startsWith("date") || h === "Staf" && sort.startsWith("name") ? (sort.endsWith("asc") ? "ascending" : "descending") : undefined}>{h === "Masa" || h === "Staf" ? <Button size="sm" variant="ghost" onClick={() => toggleSort(h === "Masa" ? "date" : "name")}>{h}<ArrowUpDown className="ml-1 h-3.5 w-3.5" /></Button> : h}</th>)}</tr>
+                  <tr><th className="w-12 px-3 py-3"><Checkbox aria-label="Pilih semua laporan dipaparkan" checked={allChecked ? true : checkedVisible.length ? "indeterminate" : false} disabled={!filtered.length || loading || deleting} onCheckedChange={(checked) => setCheckedIds(checked === true ? filtered.map((row) => row.id) : [])} /></th>{["Masa", "Pelapor", "Kategori", "Zon", "Bangunan", "Status", "Catatan", "Foto", "GPS", ""].map((h) => <th key={h} className="px-3 py-3" aria-sort={h === "Masa" && sort.startsWith("date") || h === "Pelapor" && sort.startsWith("name") ? (sort.endsWith("asc") ? "ascending" : "descending") : undefined}>{h === "Masa" || h === "Pelapor" ? <Button size="sm" variant="ghost" onClick={() => toggleSort(h === "Masa" ? "date" : "name")}>{h}<ArrowUpDown className="ml-1 h-3.5 w-3.5" /></Button> : h}</th>)}</tr>
                 </thead>
                 <tbody>
                   {loading ? <tr><td colSpan={11} className="p-8 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></td></tr>
@@ -419,7 +419,7 @@ function ReportDialog({ report, scopes, photo, onClose, onSaved }: { report: Rep
               <Info k="GPS" v={`${report.latitude.toFixed(6)}, ${report.longitude.toFixed(6)}`} />
               <Info k="Ketepatan" v={report.gps_accuracy ? `±${Math.round(report.gps_accuracy)} m` : "—"} />
             </div>
-            {report.notes && <Info k="Catatan staf" v={report.notes} />}
+            {report.notes && <Info k="Catatan pelapor" v={report.notes} />}
             {report.admin_notes && <div><p className="text-xs text-muted-foreground">Log tindakan</p><pre className="whitespace-pre-wrap rounded bg-muted p-2 text-xs">{report.admin_notes}</pre></div>}
             <div className="space-y-3 rounded-md border p-3">
               <p className="text-xs font-semibold uppercase text-muted-foreground">Edit maklumat laporan</p>
@@ -435,7 +435,7 @@ function ReportDialog({ report, scopes, photo, onClose, onSaved }: { report: Rep
                 <div className="space-y-1.5"><Label>Bangunan</Label>
                   <Select value={f.building} onValueChange={(v) => setF({ ...f, building: v })}><SelectTrigger><SelectValue placeholder="Pilih" /></SelectTrigger><SelectContent>{(ZONES[f.zone as keyof typeof ZONES] ?? []).map((b: string) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent></Select></div>
               </div>
-              <div className="space-y-1.5"><Label>Catatan staf</Label><Textarea rows={3} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></div>
+              <div className="space-y-1.5"><Label>Catatan pelapor</Label><Textarea rows={3} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></div>
             </div>
             <div className="space-y-1.5"><Label>Skop tugasan</Label><Select value={scopeId} onValueChange={setScopeId}><SelectTrigger className="w-full" aria-label="Skop tugasan"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="unassigned">Belum diagihkan</SelectItem>{scopes.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select></div>
             <div className="space-y-1.5"><Label htmlFor="contractor-company">Syarikat / Unit Bertanggungjawab (pilihan)</Label><Input id="contractor-company" maxLength={200} value={company} onChange={(e) => setCompany(e.target.value)} /></div>
