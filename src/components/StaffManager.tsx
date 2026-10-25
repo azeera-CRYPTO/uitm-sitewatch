@@ -5,7 +5,6 @@ import { ArrowUpDown, Loader2, Pencil, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { deleteStaffAccount } from "@/lib/staff.functions";
 import type { Report } from "@/lib/locations";
@@ -100,7 +99,7 @@ export function StaffManager({ reports, selfId, onSaved }: { reports: Report[]; 
       </div>
 
       <Dialog open={!!edit} onOpenChange={(o) => !o && setEdit(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Kemas kini maklumat pengguna</DialogTitle></DialogHeader>
           {edit && <div className="space-y-3">
             <p className="text-sm text-muted-foreground">{edit.email}</p>
