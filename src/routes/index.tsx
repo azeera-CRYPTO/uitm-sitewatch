@@ -8,6 +8,8 @@ import { UitmLogo } from "@/components/UitmLogo";
 import { ReportExport } from "@/components/ReportExport";
 import { photoPaths } from "@/lib/report-output";
 import { OwnReportDialog } from "@/components/OwnReportDialog";
+import { ReportContractorFields, contractorScopesQuery } from "@/components/ReportContractorFields";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +24,7 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Borang Laporan Tugasan Tapak | BPF UiTM Cawangan Kelantan" },
-      { name: "description", content: "Borang pelaporan tugasan tapak staf BPF UiTM Cawangan Kelantan dengan GPS, masa dan foto pilihan." },
+      { name: "description", content: "Borang pelaporan tugasan tapak staf dan kontraktor BPF UiTM Cawangan Kelantan dengan skop kerja, GPS, masa dan foto pilihan." },
       { property: "og:title", content: "Borang Laporan Tugasan Tapak | BPF UiTM Cawangan Kelantan" },
       { property: "og:description", content: "Laporkan tugasan tapak dengan lokasi GPS automatik dan foto pilihan." },
       { property: "og:type", content: "website" },
@@ -95,8 +97,8 @@ function StaffAuth() {
   return (
     <div className="mx-auto max-w-sm space-y-4 rounded-xl border bg-card p-6 shadow-sm">
       <div className="rounded-md bg-primary p-4"><UitmLogo /></div>
-      <h2 className="text-lg font-bold">Log Masuk Staf</h2>
-      <p className="text-sm text-muted-foreground">Gunakan akaun Google anda. Staf baharu akan diminta melengkapkan maklumat selepas log masuk.</p>
+      <h2 className="text-lg font-bold">Log Masuk Staf / Kontraktor</h2>
+      <p className="text-sm text-muted-foreground">Gunakan akaun Google anda. Pengguna baharu akan diminta melengkapkan maklumat selepas log masuk.</p>
       <GoogleSignIn />
     </div>
   );
@@ -122,7 +124,7 @@ function StaffOnboarding({ session, onDone }: { session: Session; onDone: () => 
   return (
     <form onSubmit={submit} className="mx-auto max-w-sm space-y-4 rounded-xl border bg-card p-6 shadow-sm">
       <div className="rounded-md bg-primary p-4"><UitmLogo /></div>
-      <h2 className="text-lg font-bold">Lengkapkan Maklumat Staf</h2>
+      <h2 className="text-lg font-bold">Lengkapkan Maklumat Pelapor</h2>
       <p className="text-xs text-muted-foreground">{session.user.email}</p>
       <div className="space-y-1.5"><Label>Nama penuh *</Label><Input value={name} onChange={(e) => setName(e.target.value)} required /></div>
       <div className="space-y-1.5"><Label>ID Staf / Unit / Kontraktor *</Label><Input value={sid} onChange={(e) => setSid(e.target.value)} placeholder="cth. 123456 / BPF / Syarikat ABC" required /></div>
@@ -134,6 +136,7 @@ function StaffOnboarding({ session, onDone }: { session: Session; onDone: () => 
 const badge = (s: string) => s === "Selesai" ? "bg-success text-success-foreground" : s === "Memerlukan Tindakan Lanjut" ? "bg-destructive text-destructive-foreground" : s === "Dalam Tindakan" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground";
 
 function StaffHistory({ userId }: { userId: string }) {
+  const { data: scopes = [] } = useQuery(contractorScopesQuery);
   const [rows, setRows] = useState<Report[] | null>(null);
   const [photos, setPhotos] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<{ report: Report; action: "edit" | "delete" } | null>(null);
@@ -162,6 +165,8 @@ function StaffHistory({ userId }: { userId: string }) {
             <div className="flex flex-wrap items-center gap-2"><Badge className={badge(r.status)}>{r.status}</Badge><span className="text-xs text-muted-foreground">{new Date(r.captured_at).toLocaleString("ms-MY")}</span></div>
             <p className="mt-1 font-semibold">{r.category}</p>
             <p className="text-xs text-muted-foreground">{r.zone} · {r.building}</p>
+            {r.contractor_scope_id && <p className="mt-1 text-xs">Skop: {scopes.find((s) => s.id === r.contractor_scope_id)?.name ?? "Skop tidak tersedia"}</p>}
+            {r.contractor_company && <p className="text-xs">Syarikat / Unit: {r.contractor_company}</p>}
             {r.notes && <p className="mt-1 text-xs">{r.notes}</p>}
             {r.admin_notes && <pre className="mt-1 whitespace-pre-wrap rounded bg-muted p-2 text-xs text-primary">{r.admin_notes}</pre>}
             <div className="mt-3 flex flex-wrap gap-2">
@@ -188,6 +193,8 @@ function StaffForm({ session }: { session: Session }) {
   const [zone, setZone] = useState("");
   const [building, setBuilding] = useState("");
   const [notes, setNotes] = useState("");
+  const [scopeId, setScopeId] = useState("");
+  const [company, setCompany] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -220,7 +227,7 @@ function StaffForm({ session }: { session: Session }) {
   };
 
   const reset = () => {
-    setCategory(""); setStatus(""); setZone(""); setBuilding(""); setNotes(""); onPhoto(null); setDone(false); capture();
+    setCategory(""); setStatus(""); setZone(""); setBuilding(""); setNotes(""); setScopeId(""); setCompany(""); onPhoto(null); setDone(false); capture();
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -249,6 +256,8 @@ function StaffForm({ session }: { session: Session }) {
         category, status, zone, building,
         notes: notes.trim() || null,
         photo_path: path,
+        contractor_scope_id: scopeId || null,
+        contractor_company: company.trim() || null,
       });
       if (error) throw error;
       setDone(true);
@@ -300,7 +309,7 @@ function StaffForm({ session }: { session: Session }) {
             </section>
 
             <section className="space-y-4 rounded-xl border bg-card p-4 shadow-sm">
-              <h2 className="font-semibold">Maklumat Staf</h2>
+              <h2 className="font-semibold">Maklumat Pelapor</h2>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5"><Label>Nama *</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama penuh" /></div>
                 <div className="space-y-1.5"><Label>ID Staf / Unit / Kontraktor *</Label><Input value={staffId} onChange={(e) => setStaffId(e.target.value)} placeholder="cth. 123456 / BPF" /></div>
@@ -320,6 +329,7 @@ function StaffForm({ session }: { session: Session }) {
                 <Label>Catatan Terperinci</Label>
                 <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={4} placeholder="Aras, nombor bilik, atau catatan kerja…" />
               </div>
+              <ReportContractorFields scopeId={scopeId} company={company} onScopeChange={setScopeId} onCompanyChange={setCompany} />
             </section>
 
             <section className="space-y-3 rounded-xl border bg-card p-4 shadow-sm">

@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from "@/components/ui/alert-dialog";
 import { CATEGORIES, STAFF_STATUSES, ZONES, type Report } from "@/lib/locations";
 import { editOwnReport, deleteOwnReport } from "@/lib/reports.functions";
+import { ReportContractorFields } from "@/components/ReportContractorFields";
 
 export function OwnReportDialog({ report, action, onClose, onSaved }: { report: Report; action: "edit" | "delete"; onClose: () => void; onSaved: () => void }) {
   const [category, setCategory] = useState(report.category);
@@ -17,6 +18,8 @@ export function OwnReportDialog({ report, action, onClose, onSaved }: { report: 
   const [zone, setZone] = useState(report.zone);
   const [building, setBuilding] = useState(report.building);
   const [notes, setNotes] = useState(report.notes ?? "");
+  const [scopeId, setScopeId] = useState(report.contractor_scope_id ?? "");
+  const [company, setCompany] = useState(report.contractor_company ?? "");
   const [busy, setBusy] = useState(false);
   const edit = useServerFn(editOwnReport);
   const remove = useServerFn(deleteOwnReport);
@@ -28,7 +31,7 @@ export function OwnReportDialog({ report, action, onClose, onSaved }: { report: 
         if (!result.photoRemoved) toast.warning("Laporan dipadam, tetapi foto belum dapat dipadam. Sila maklumkan admin.");
         else toast.success("Laporan dan foto dipadam.");
       } else {
-        await edit({ data: { id: report.id, category, status, zone, building, notes } });
+        await edit({ data: { id: report.id, category, status, zone, building, notes, contractor_scope_id: scopeId || null, contractor_company: company.trim() || null } });
         toast.success("Laporan berjaya dikemas kini.");
       }
       onSaved(); onClose();
@@ -50,6 +53,7 @@ export function OwnReportDialog({ report, action, onClose, onSaved }: { report: 
         <Field label="Bangunan / Lokasi" value={building} onChange={setBuilding} items={ZONES[zone] ?? []} />
       </div>
       <div className="space-y-1.5"><Label htmlFor="edit-notes">Catatan</Label><Textarea id="edit-notes" rows={4} maxLength={10000} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+      <ReportContractorFields scopeId={scopeId} company={company} onScopeChange={setScopeId} onCompanyChange={setCompany} />
       <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={onClose} disabled={busy}>Batal</Button><Button type="submit" disabled={busy || !building}>{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Simpan perubahan</Button></div>
     </form>
   </DialogContent></Dialog>;

@@ -8,6 +8,8 @@ export const ownReportEditSchema = z.object({
   zone: z.string(),
   building: z.string(),
   notes: z.string().max(10000),
+  contractor_scope_id: z.string().uuid().nullable().optional(),
+  contractor_company: z.string().trim().max(200).nullable().optional(),
 }).refine((v) => ZONES[v.zone]?.includes(v.building), "Bangunan tidak sah bagi zon ini");
 
 export function assertReportOwner(ownerId: string | null, userId: string) {
