@@ -1,0 +1,12 @@
+CREATE TABLE public.contractor_scopes (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), name text NOT NULL UNIQUE, created_at timestamptz NOT NULL DEFAULT now());
+GRANT SELECT ON public.contractor_scopes TO authenticated;
+GRANT INSERT, UPDATE, DELETE ON public.contractor_scopes TO authenticated;
+GRANT ALL ON public.contractor_scopes TO service_role;
+ALTER TABLE public.contractor_scopes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "authenticated scope read" ON public.contractor_scopes FOR SELECT TO authenticated USING (true);
+CREATE POLICY "admin scope insert" ON public.contractor_scopes FOR INSERT TO authenticated WITH CHECK (public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "admin scope update" ON public.contractor_scopes FOR UPDATE TO authenticated USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "admin scope delete" ON public.contractor_scopes FOR DELETE TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+ALTER TABLE public.reports ADD COLUMN contractor_scope_id uuid REFERENCES public.contractor_scopes(id) ON DELETE SET NULL, ADD COLUMN contractor_company text;
+CREATE FUNCTION public.protect_report_assignment() RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$ BEGIN IF NOT public.has_role(auth.uid(), 'admin') AND auth.role() IS DISTINCT FROM 'service_role' THEN IF TG_OP = 'INSERT' THEN NEW.contractor_scope_id := NULL; NEW.contractor_company := NULL; ELSE NEW.contractor_scope_id := OLD.contractor_scope_id; NEW.contractor_company := OLD.contractor_company; END IF; END IF; RETURN NEW; END; $$;
+CREATE TRIGGER protect_report_assignment BEFORE INSERT OR UPDATE ON public.reports FOR EACH ROW EXECUTE FUNCTION public.protect_report_assignment();

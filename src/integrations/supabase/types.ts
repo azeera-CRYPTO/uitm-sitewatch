@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      contractor_scopes: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -44,6 +62,8 @@ export type Database = {
           building: string
           captured_at: string
           category: string
+          contractor_company: string | null
+          contractor_scope_id: string | null
           created_at: string
           gps_accuracy: number | null
           id: string
@@ -63,6 +83,8 @@ export type Database = {
           building: string
           captured_at: string
           category: string
+          contractor_company?: string | null
+          contractor_scope_id?: string | null
           created_at?: string
           gps_accuracy?: number | null
           id?: string
@@ -82,6 +104,8 @@ export type Database = {
           building?: string
           captured_at?: string
           category?: string
+          contractor_company?: string | null
+          contractor_scope_id?: string | null
           created_at?: string
           gps_accuracy?: number | null
           id?: string
@@ -96,7 +120,15 @@ export type Database = {
           user_id?: string | null
           zone?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "reports_contractor_scope_id_fkey"
+            columns: ["contractor_scope_id"]
+            isOneToOne: false
+            referencedRelation: "contractor_scopes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
