@@ -16,5 +16,5 @@
 - Represent missing report photos as null and filter empty paths before storage calls so optional evidence does not create invalid uploads or cleanup requests.
 - Admin bulk report deletion uses an authenticated server function with a server-verified admin role and RLS; clean only photos returned by successful deletions and not referenced by remaining reports to prevent unintended removal.
 - Keep map pin types and status filtering in a browser-safe module; lazy-load Leaflet and its clustering plugin behind ClientOnly, enabling clustering only for the admin map so staff GPS previews stay focused.
-- Contractor scope CRUD and admin report edits use authenticated, role-verified server functions and RLS; submit only intentionally changed report fields, and protect assignment fields with a database trigger to preserve staff content and admin-only assignments.
+- Contractor scope CRUD and admin report edits use authenticated, role-verified server functions and RLS; submit only intentionally changed report fields. Report owners may enter and edit their own scope/company; database triggers retain ownership boundaries and original capture data.
 - Executive PDF exports are browser-generated from the exact dashboard-filtered rows using shared aggregation rules; company names are per-report free text, not a separate directory.

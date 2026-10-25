@@ -19,7 +19,7 @@ export function pdfThemeColor(name: string): [number, number, number] {
   return [p[0] ?? 0, p[1] ?? 0, p[2] ?? 0];
 }
 
-export async function generateReportPdf(report: Report, photo?: string) {
+export async function generateReportPdf(report: Report, photo?: string, scopeName?: string) {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF();
   // Resolve the document palette from the application's semantic theme.
@@ -57,14 +57,15 @@ export async function generateReportPdf(report: Report, photo?: string) {
     y += 4;
   };
   field("Tarikh / Masa", new Date(report.captured_at).toLocaleString("ms-MY"));
-  field("Nama Staf / ID Staf / Unit / Kontraktor", `${report.staff_name} / ${report.staff_id}`);
+  field("Nama Pelapor / ID Staf / Unit / Kontraktor", `${report.staff_name} / ${report.staff_id}`);
   field("Kategori / Status", `${report.category} / ${report.status}`);
   field("Zon / Bangunan", `${report.zone} / ${report.building}`);
   field("Koordinat GPS / Ketepatan", `${report.latitude.toFixed(6)}, ${report.longitude.toFixed(6)} / ${report.gps_accuracy == null ? "-" : `+/-${Math.round(report.gps_accuracy)} m`}`);
   space(10); doc.setTextColor(...primary);
   doc.textWithLink("Lihat lokasi di Google Maps", 16, y, { url: `https://www.google.com/maps?q=${report.latitude},${report.longitude}` }); y += 10;
-  field("Catatan Staf", report.notes || "-");
+  field("Catatan Pelapor", report.notes || "-");
   field("Catatan / Log Tindakan Admin", report.admin_notes || "-");
+  field("Skop Kerja / Kontraktor", scopeName || "Tiada skop");
   if (report.contractor_company) field("Syarikat / Unit Bertanggungjawab", report.contractor_company);
   if (report.photo_path) {
     if (!photo) throw new Error("Foto belum tersedia. Sila buka semula laporan dan cuba lagi.");

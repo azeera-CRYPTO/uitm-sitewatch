@@ -50,6 +50,13 @@
       "when": 1792892952631,
       "tag": "0006_contractor_scopes_assignments",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792894280248,
+      "tag": "0007_owner_report_contractor_input",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,5 @@
 # Kemas kini
+- [ ] Borang bersama staf/kontraktor dengan skop pilihan dan nama syarikat setiap laporan; kemas kini pemilikan, sejarah dan PDF, serta uji simpan/baca semula.
 - [x] Pengurusan skop kontraktor admin dan agihan skop/syarikat bagi laporan; diuji tambah/edit/padam, simpan/baca semula, maklumat staf kekal dan laporan dikekalkan apabila skop dipadam.
 - [x] Ringkasan eksekutif PDF bertapis, statistik dan tandatangan; diuji muat turun melalui admin dan semakan visual PDF, baiki simbol anak panah serta ruang tandatangan.
 - [x] Pengelompokan penanda peta admin dan pilihan papar/sembunyi mengikut status; diuji dengan laporan sebenar, kelompok bertindih, butiran laporan dan telefon.
