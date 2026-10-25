@@ -1,4 +1,5 @@
 # Kemas kini
+- [ ] Pendaftaran mengikut jenis staf/kontraktor, maklumat bersyarat dan senarai pengguna serta tapisan pelapor admin; simpan dan uji baca semula.
 - [x] Borang bersama staf/kontraktor dengan skop pilihan dan nama syarikat setiap laporan; diuji hantar, kemas kini, baca semula sejarah, kandungan PDF dan telefon menggunakan akaun admin; ujian peraturan pemilikan lulus. Pertukaran peta/borang tanpa ralat selepas pembetulan animasi.
 - [x] Pengurusan skop kontraktor admin dan agihan skop/syarikat bagi laporan; diuji tambah/edit/padam, simpan/baca semula, maklumat staf kekal dan laporan dikekalkan apabila skop dipadam.
 - [x] Ringkasan eksekutif PDF bertapis, statistik dan tandatangan; diuji muat turun melalui admin dan semakan visual PDF, baiki simbol anak panah serta ruang tandatangan.
