@@ -18,10 +18,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ClientMap } from "@/components/ClientMap";
-import { CATEGORIES, STAFF_STATUSES, ZONES, type Report } from "@/lib/locations";
+import { ZONES, type Report } from "@/lib/locations";
 import { useServerFn } from "@tanstack/react-start";
 import { saveReporterProfile } from "@/lib/profiles.functions";
 import { emptyProfile, profileComplete, reporterLabel, type ProfileInput, type ReporterProfile } from "@/lib/profile-rules";
+import { reportOptionsQuery } from "@/lib/report-options-query";
+import { optionNames, reportStatusBadge } from "@/lib/report-options";
 import { ReporterProfileFields } from "@/components/ReporterProfileFields";
 
 export const Route = createFileRoute("/")({
@@ -135,9 +137,8 @@ function StaffOnboarding({ session, profile, onDone }: { session: Session; profi
   );
 }
 
-const badge = (s: string) => s === "Selesai" ? "bg-success text-success-foreground" : s === "Memerlukan Tindakan Lanjut" ? "bg-destructive text-destructive-foreground" : s === "Dalam Tindakan" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground";
-
 function StaffHistory({ userId }: { userId: string }) {
+  const { data: options = [] } = useQuery(reportOptionsQuery);
   const { data: scopes = [] } = useQuery(contractorScopesQuery);
   const [rows, setRows] = useState<Report[] | null>(null);
   const [photos, setPhotos] = useState<Record<string, string>>({});
@@ -164,7 +165,7 @@ function StaffHistory({ userId }: { userId: string }) {
         <div key={r.id} className="flex gap-3 rounded-xl border bg-card p-3 shadow-sm">
           {photos[r.photo_path ?? ""] ? <img src={photos[r.photo_path ?? ""]} alt="Bukti" className="h-20 w-20 shrink-0 rounded object-cover" /> : <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded bg-muted"><Badge variant="outline">{r.photo_path ? "Foto belum tersedia" : "Tiada foto"}</Badge></div>}
           <div className="min-w-0 flex-1 text-sm">
-            <div className="flex flex-wrap items-center gap-2"><Badge className={badge(r.status)}>{r.status}</Badge><span className="text-xs text-muted-foreground">{new Date(r.captured_at).toLocaleString("ms-MY")}</span></div>
+            <div className="flex flex-wrap items-center gap-2"><Badge className={reportStatusBadge(r.status, options)}>{r.status}</Badge><span className="text-xs text-muted-foreground">{new Date(r.captured_at).toLocaleString("ms-MY")}</span></div>
             <p className="mt-1 font-semibold">{r.category}</p>
             <p className="text-xs text-muted-foreground">{r.zone} · {r.building}</p>
             {r.contractor_scope_id && <p className="mt-1 text-xs">Skop: {scopes.find((s) => s.id === r.contractor_scope_id)?.name ?? "Skop tidak tersedia"}</p>}
@@ -185,6 +186,7 @@ function StaffHistory({ userId }: { userId: string }) {
 }
 
 function StaffForm({ session, profile }: { session: Session; profile: ReporterProfile }) {
+  const { data: options = [], isPending: optionsLoading, isError: optionsError } = useQuery(reportOptionsQuery);
   const [capturedAt, setCapturedAt] = useState<Date | null>(null);
   const [geo, setGeo] = useState<Geo>(null);
   const [geoErr, setGeoErr] = useState<string | null>(null);
@@ -320,9 +322,10 @@ function StaffForm({ session, profile }: { session: Session; profile: ReporterPr
 
             <section className="space-y-4 rounded-xl border bg-card p-4 shadow-sm">
               <h2 className="font-semibold">Butiran Laporan</h2>
+              {optionsError && <p className="text-sm text-destructive">Senarai kategori dan status gagal dimuatkan. Sila muat semula halaman.</p>}
               <div className="grid gap-3 sm:grid-cols-2">
-                <Pick label="Kategori Laporan *" value={category} onChange={setCategory} items={CATEGORIES} />
-                <Pick label="Status Tugasan *" value={status} onChange={setStatus} items={STAFF_STATUSES} />
+                <Pick label="Kategori Laporan *" value={category} onChange={setCategory} items={optionNames(options, "category")} />
+                <Pick label="Status Tugasan *" value={status} onChange={setStatus} items={optionNames(options, "status")} />
                 <Pick label="Zon *" value={zone} onChange={(v) => { setZone(v); setBuilding(""); }} items={Object.keys(ZONES)} />
                 <Pick label="Bangunan / Lokasi *" value={building} onChange={setBuilding} items={(zone && ZONES[zone]) || []} disabled={!zone} placeholder={zone ? "Pilih bangunan" : "Pilih zon dahulu"} />
               </div>
@@ -342,7 +345,7 @@ function StaffForm({ session, profile }: { session: Session; profile: ReporterPr
               {photo && <Button type="button" size="sm" variant="outline" onClick={() => onPhoto(null)}><Trash2 className="mr-1 h-4 w-4" />Buang foto</Button>}
             </section>
 
-            <Button type="submit" size="lg" className="w-full" disabled={busy || !geo}>
+            <Button type="submit" size="lg" className="w-full" disabled={busy || !geo || optionsLoading || optionsError || !optionNames(options, "category").includes(category) || !optionNames(options, "status").includes(status)}>
               {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
               Hantar Laporan
             </Button>
@@ -366,7 +369,7 @@ function Pick({ label, value, onChange, items, disabled, placeholder }: { label:
     <div className="space-y-1.5">
       <Label>{label}</Label>
       <Select value={value} onValueChange={onChange} disabled={!!disabled}>
-        <SelectTrigger className="w-full"><SelectValue placeholder={placeholder ?? "Pilih"} /></SelectTrigger>
+        <SelectTrigger aria-label={label} className="w-full"><SelectValue placeholder={placeholder ?? "Pilih"} /></SelectTrigger>
         <SelectContent>{items.map((i) => <SelectItem key={i} value={i}>{i}</SelectItem>)}</SelectContent>
       </Select>
     </div>

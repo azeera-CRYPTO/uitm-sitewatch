@@ -8,11 +8,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from "@/components/ui/alert-dialog";
-import { CATEGORIES, STAFF_STATUSES, ZONES, type Report } from "@/lib/locations";
+import { ZONES, type Report } from "@/lib/locations";
 import { editOwnReport, deleteOwnReport } from "@/lib/reports.functions";
+import { useQuery } from "@tanstack/react-query";
+import { reportOptionsQuery } from "@/lib/report-options-query";
+import { optionNames } from "@/lib/report-options";
 import { ReportContractorFields } from "@/components/ReportContractorFields";
 
 export function OwnReportDialog({ report, action, onClose, onSaved }: { report: Report; action: "edit" | "delete"; onClose: () => void; onSaved: () => void }) {
+  const { data: options = [] } = useQuery(reportOptionsQuery);
   const [category, setCategory] = useState(report.category);
   const [status, setStatus] = useState(report.status);
   const [zone, setZone] = useState(report.zone);
@@ -47,8 +51,8 @@ export function OwnReportDialog({ report, action, onClose, onSaved }: { report: 
     <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
       <div className="border-b pb-3 text-xs text-muted-foreground"><p>{new Date(report.captured_at).toLocaleString("ms-MY")}</p><p className="font-mono">GPS: {report.latitude.toFixed(6)}, {report.longitude.toFixed(6)}</p></div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Kategori" value={category} onChange={setCategory} items={CATEGORIES} />
-        <Field label="Status" value={status} onChange={setStatus} items={report.status === "Dalam Tindakan" ? [...STAFF_STATUSES, "Dalam Tindakan"] : STAFF_STATUSES} />
+        <Field label="Kategori" value={category} onChange={setCategory} items={optionNames(options, "category", [report.category])} />
+        <Field label="Status" value={status} onChange={setStatus} items={optionNames(options, "status", [report.status])} />
         <Field label="Zon" value={zone} onChange={(v) => { setZone(v); setBuilding(""); }} items={Object.keys(ZONES)} />
         <Field label="Bangunan / Lokasi" value={building} onChange={setBuilding} items={ZONES[zone] ?? []} />
       </div>

@@ -19,3 +19,5 @@
 - Contractor scope CRUD and admin report edits use authenticated, role-verified server functions and RLS; submit only intentionally changed report fields. Report owners may enter and edit their own scope/company; database triggers retain ownership boundaries and original capture data.
 - Executive PDF exports are browser-generated from the exact dashboard-filtered rows using shared aggregation rules; company names are per-report free text, not a separate directory.
 - Reporter profile categories are descriptive, never authorization roles; shared conditional validation and authenticated profile saves enforce staff/contractor details. Report insertion snapshots identity from the authenticated profile in a database trigger, while legacy reports remain unchanged.
+
+- Category/status catalogues use admin-authorized server mutations and RLS; retire choices without rewriting report snapshots, validate changed selections in a database trigger, and use status groups plus prior-name aliases for map/statistics/PDF consistency.

@@ -1,10 +1,10 @@
-import { CATEGORIES, STAFF_STATUSES, ZONES } from "./locations";
+import { ZONES } from "./locations";
 import { z } from "zod";
 
 export const ownReportEditSchema = z.object({
   id: z.string().uuid(),
-  category: z.string().refine((v) => CATEGORIES.includes(v)),
-  status: z.string().refine((v) => [...STAFF_STATUSES, "Dalam Tindakan"].includes(v)),
+  category: z.string().trim().min(1).max(120),
+  status: z.string().trim().min(1).max(120),
   zone: z.string(),
   building: z.string(),
   notes: z.string().max(10000),

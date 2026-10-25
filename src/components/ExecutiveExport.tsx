@@ -1,3 +1,5 @@
+import { useQuery } from "@tanstack/react-query";
+import { reportOptionsQuery } from "@/lib/report-options-query";
 import { useState } from "react";
 import { Download, FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -11,9 +13,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export function ExecutiveExport({ rows, scopes, from, to, filters }: { rows: Report[]; scopes: ContractorScope[]; from: string; to: string; filters: string }) {
+  const { data: statuses = [] } = useQuery(reportOptionsQuery);
   const [open, setOpen] = useState(false), [busy, setBusy] = useState(false);
   const [prepared, setPrepared] = useState(""), [approved, setApproved] = useState("");
-  const generate = async () => { setBusy(true); try { downloadPdf(await generateExecutivePdf(rows, scopes, { from, to, filters, prepared, approved })); setOpen(false); } catch (e) { toast.error(e instanceof Error ? e.message : "PDF gagal dijana."); } finally { setBusy(false); } };
+  const generate = async () => { setBusy(true); try { downloadPdf(await generateExecutivePdf(rows, scopes, { from, to, filters, prepared, approved, statuses })); setOpen(false); } catch (e) { toast.error(e instanceof Error ? e.message : "PDF gagal dijana."); } finally { setBusy(false); } };
   return <><Button variant="secondary" onClick={() => setOpen(true)}><FileText />Ringkasan Eksekutif PDF</Button>
     <Dialog open={open} onOpenChange={(v) => { if (!busy) setOpen(v); }}><DialogContent><DialogHeader><DialogTitle>Ringkasan Eksekutif PDF</DialogTitle></DialogHeader>
       <p className="text-sm">{from || "Semua tarikh"} — {to || "Semua tarikh"}<br />{rows.length} laporan · {filters}</p>
