@@ -21,3 +21,4 @@
 - Reporter profile categories are descriptive, never authorization roles; shared conditional validation and authenticated profile saves enforce staff/contractor details. Report insertion snapshots identity from the authenticated profile in a database trigger, while legacy reports remain unchanged.
 
 - Category/status catalogues use admin-authorized server mutations and RLS; retire choices without rewriting report snapshots, validate changed selections in a database trigger, and use status groups plus prior-name aliases for map/statistics/PDF consistency.
+- Report photos are compressed in the browser (WebP, max 500px, 60%) and uploaded to Cloudinary via an unsigned preset; the database stores only the URL, while legacy internal-storage paths stay readable and are cleaned only on delete.
