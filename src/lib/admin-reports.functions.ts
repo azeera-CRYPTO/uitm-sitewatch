@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { adminReportDeleteSchema, assertReportAdmin } from "./admin-report-rules";
+import { isExternalPhoto } from "./media";
 
 export const deleteAdminReports = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -12,7 +13,8 @@ export const deleteAdminReports = createServerFn({ method: "POST" })
     const { data: removed, error } = await context.supabase.from("reports").delete().in("id", data.ids).select("id, photo_path");
     if (error) throw new Error("Laporan gagal dipadam. Sila cuba semula.");
     const deletedIds = (removed ?? []).map((row) => row.id);
-    const paths = [...new Set((removed ?? []).flatMap((row) => row.photo_path?.trim() ? [row.photo_path] : []))];
+    // Cloudinary URLs are external; only legacy internal paths are cleaned here.
+    const paths = [...new Set((removed ?? []).flatMap((row) => row.photo_path?.trim() && !isExternalPhoto(row.photo_path) ? [row.photo_path] : []))];
     if (!paths.length) return { deletedIds, photoRemoved: true };
     // Do not remove a legacy/shared photo still referenced by another report.
     const { data: linked, error: linkedError } = await context.supabase.from("reports").select("photo_path").in("photo_path", paths);
