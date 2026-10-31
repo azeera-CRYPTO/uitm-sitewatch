@@ -10,14 +10,15 @@ import { optionNames, reportStatusGroup, reportStatusBadge } from "@/lib/report-
 import { ReportOptionManager } from "@/components/ReportOptionManager";
 import { ContractorScopes } from "@/components/ContractorScopes";
 import { ExecutiveExport } from "@/components/ExecutiveExport";
-import { kpiSummary, visibleSelectedIds } from "@/lib/admin-report-rules";
+import { kpiSummary, visibleSelectedIds, purgeIdsBefore } from "@/lib/admin-report-rules";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import type { Session } from "@supabase/supabase-js";
 import { Download, Loader2, LogOut, ArrowUpDown, MapPin, Table2, Trash2, Users, FileText, Eye, EyeOff } from "lucide-react";
 import { filterMapReports, mapStatusClass, toggleMapStatus } from "@/lib/map-reports";
 import { ReportExport } from "@/components/ReportExport";
-import { sortReports, photoPaths, type ReportSort } from "@/lib/report-output";
+import { sortReports, photoPaths, externalPhotos, type ReportSort } from "@/lib/report-output";
+import { isExternalPhoto } from "@/lib/media";
 import { StaffManager } from "@/components/StaffManager";
 import { GoogleSignIn } from "@/components/GoogleSignIn";
 import { UitmLogo } from "@/components/UitmLogo";
@@ -147,6 +148,7 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
   const [selected, setSelected] = useState<Report | null>(null);
   const [checkedIds, setCheckedIds] = useState<string[]>([]);
   const [deleteIds, setDeleteIds] = useState<string[]>([]);
+  const [purgeBefore, setPurgeBefore] = useState("");
   const [deleting, setDeleting] = useState(false);
   const deleteFn = useServerFn(deleteAdminReports);
   useEffect(() => { setCheckedIds([]); }, [from, to, zone, cat, query, scopeFilter, typeFilter]);
@@ -164,12 +166,12 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
     const list = (data ?? []) as Report[];
     setRows(list);
     setCheckedIds((ids) => visibleSelectedIds(ids, list));
+    const map: Record<string, string> = externalPhotos(list);
     if (photoPaths(list).length) {
       const { data: signed } = await supabase.storage.from("report-photos").createSignedUrls(photoPaths(list), 3600);
-      const map: Record<string, string> = {};
       signed?.forEach((s) => { if (s.path && s.signedUrl) map[s.path] = s.signedUrl; });
-      setPhotos(map);
     }
+    setPhotos(map);
     setLoading(false);
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -255,6 +257,12 @@ function Dashboard({ email, selfId }: { email: string; selfId: string }) {
           <FilterSel label="Zon" value={zone} onChange={setZone} items={Object.keys(ZONES)} />
           <FilterSel label="Kategori" value={cat} onChange={setCat} items={optionNames(options, "category", rows.map((r) => r.category))} />
           <div className="flex items-end"><Button className="w-full" variant="secondary" onClick={exportCsv}><Download className="mr-2 h-4 w-4" />Eksport Excel/CSV</Button></div>
+        </div>
+
+        <div className="flex flex-wrap items-end gap-3 rounded-xl border border-destructive/30 bg-card p-4 shadow-sm">
+          <div className="space-y-1.5"><Label htmlFor="purge-before">Bersihkan data: padam rekod sebelum tarikh</Label><Input id="purge-before" type="date" value={purgeBefore} onChange={(e) => setPurgeBefore(e.target.value)} /></div>
+          <Button variant="destructive" disabled={!purgeBefore || loading || deleting} onClick={() => { const ids = purgeIdsBefore(rows, purgeBefore); if (!ids.length) toast.info("Tiada rekod sebelum tarikh ini."); else setDeleteIds(ids); }}><Trash2 className="mr-1 h-4 w-4" />Bersihkan Data Lama</Button>
+          <p className="w-full text-xs text-muted-foreground">Muat turun Eksport Excel/CSV dahulu sebagai arkib. Tindakan ini memadam laporan secara kekal.</p>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
@@ -400,7 +408,7 @@ function ReportDialog({ report, scopes, photo, onClose, onSaved }: { report: Rep
     if (!report || !window.confirm("Padam laporan ini secara kekal? Tindakan ini tidak boleh dibatalkan.")) return;
     setBusy(true);
     const { error } = await supabase.from("reports").delete().eq("id", report.id);
-    if (!error && report.photo_path) await supabase.storage.from("report-photos").remove([report.photo_path]);
+    if (!error && report.photo_path && !isExternalPhoto(report.photo_path)) await supabase.storage.from("report-photos").remove([report.photo_path]);
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Laporan dipadam.");
