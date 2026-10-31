@@ -71,6 +71,13 @@
       "when": 1792898169042,
       "tag": "0009_dynamic_report_options",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793457450763,
+      "tag": "0010_report_indexes",
+      "breakpoints": true
     }
   ]
 }

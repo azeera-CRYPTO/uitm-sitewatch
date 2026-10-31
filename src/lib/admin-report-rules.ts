@@ -17,6 +17,12 @@ export const adminReportDeleteSchema = z.object({
   ids: z.array(z.string().uuid()).min(1).max(1000),
 }).transform(({ ids }) => ({ ids: [...new Set(ids)] }));
 
+/** Reports captured strictly before the given local date (YYYY-MM-DD), for purge. */
+export function purgeIdsBefore(rows: { id: string; captured_at: string }[], before: string): string[] {
+  if (!before) return [];
+  return rows.filter((r) => new Date(r.captured_at).toLocaleDateString("en-CA") < before).map((r) => r.id).slice(0, 1000);
+}
+
 export function assertReportAdmin(isAdmin: boolean | null) {
   if (isAdmin !== true) throw new Error("Hanya admin boleh memadam laporan terpilih.");
 }
