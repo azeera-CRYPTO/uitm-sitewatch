@@ -6,7 +6,8 @@ import { Lock, Camera, Loader2, CheckCircle2, ShieldCheck, RefreshCw, LogOut, Hi
 import { GoogleSignIn } from "@/components/GoogleSignIn";
 import { UitmLogo } from "@/components/UitmLogo";
 import { ReportExport } from "@/components/ReportExport";
-import { photoPaths } from "@/lib/report-output";
+import { photoPaths, externalPhotos } from "@/lib/report-output";
+import { uploadPhoto } from "@/lib/media";
 import { OwnReportDialog } from "@/components/OwnReportDialog";
 import { ReportContractorFields, contractorScopesQuery } from "@/components/ReportContractorFields";
 import { useQuery } from "@tanstack/react-query";
@@ -148,13 +149,13 @@ function StaffHistory({ userId }: { userId: string }) {
       if (error) toast.error(error.message);
       const list = (data ?? []) as Report[];
       setRows(list);
-       const own = photoPaths(list);
+      const own = photoPaths(list);
+      const m: Record<string, string> = externalPhotos(list);
       if (own.length) {
         const { data: s } = await supabase.storage.from("report-photos").createSignedUrls(own, 3600);
-        const m: Record<string, string> = {};
         s?.forEach((x) => { if (x.path && x.signedUrl) m[x.path] = x.signedUrl; });
-        setPhotos(m);
       }
+      setPhotos(m);
     }, [userId]);
   useEffect(() => { void load(); }, [load]);
   if (!rows) return <Loader2 className="mx-auto h-6 w-6 animate-spin" />;
@@ -239,12 +240,7 @@ function StaffForm({ session, profile }: { session: Session; profile: ReporterPr
     setBusy(true);
     try {
       let path: string | null = null;
-      if (photo) {
-        const ext = photo.name.split(".").pop()?.toLowerCase() || "jpg";
-        path = `${session.user.id}/${capturedAt.toISOString().slice(0, 10)}/${crypto.randomUUID()}.${ext}`;
-        const up = await supabase.storage.from("report-photos").upload(path, photo, { contentType: photo.type || "image/jpeg" });
-        if (up.error) throw up.error;
-      }
+      if (photo) path = await uploadPhoto(photo);
       const { error } = await supabase.from("reports").insert({
         user_id: session.user.id,
         captured_at: capturedAt.toISOString(),

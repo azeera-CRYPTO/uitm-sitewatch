@@ -1,4 +1,5 @@
 import type { Report } from "./locations";
+import { isExternalPhoto } from "./media";
 
 export type ReportSort = "date-desc" | "date-asc" | "name-asc" | "name-desc";
 export function sortReports(rows: Report[], sort: ReportSort, query = "") {
@@ -11,8 +12,13 @@ export function sortReports(rows: Report[], sort: ReportSort, query = "") {
     return (sort === "name-asc" ? name : -name) || -date || a.id.localeCompare(b.id);
   });
 }
+/** Legacy internal-storage paths that still need signed URLs. */
 export function photoPaths(rows: Report[]): string[] {
-  return rows.flatMap((r) => r.photo_path ? [r.photo_path] : []);
+  return rows.flatMap((r) => r.photo_path && !isExternalPhoto(r.photo_path) ? [r.photo_path] : []);
+}
+/** Cloudinary URLs display directly. */
+export function externalPhotos(rows: Report[]): Record<string, string> {
+  return Object.fromEntries(rows.flatMap((r) => isExternalPhoto(r.photo_path) ? [[r.photo_path!, r.photo_path!]] : []));
 }
 export function whatsappText(r: Report, scopeName?: string) {
   return ["*LAPORAN TUGASAN TAPAK BPF UiTM CAWANGAN KELANTAN*", `Tarikh/Masa: ${new Date(r.captured_at).toLocaleString("ms-MY")}`, `Pelapor: ${r.staff_name} (${r.staff_id})`, `Kategori: ${r.category}`, `Lokasi: ${r.zone} - ${r.building}`, `Status: ${r.status}`, `Skop: ${scopeName || "Tiada skop"}`, `Syarikat / Unit: ${r.contractor_company || "-"}`, `Catatan: ${r.notes || "-"}`, `Catatan Admin: ${r.admin_notes || "-"}`, `GPS: https://www.google.com/maps?q=${r.latitude},${r.longitude}`].join("\n");
